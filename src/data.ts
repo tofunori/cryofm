@@ -253,7 +253,8 @@ export async function probeAvailableFiles(item: ExportedItem): Promise<Set<strin
 }
 
 export function itemImageUrl(itemId: string, filename: string): string {
-  return `${DATA_BASE_URL}/items/${itemId}/${filename}`;
+  const v = filename.endsWith('.jpg') ? '?v=2' : '';
+  return `${DATA_BASE_URL}/items/${itemId}/${filename}${v}`;
 }
 
 export function boundsToMapLibreCoords(

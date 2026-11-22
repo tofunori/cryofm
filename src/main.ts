@@ -34,6 +34,7 @@ interface AppState {
   leftOverlay: OverlayLayerKey;
   rightOverlay: OverlayLayerKey;
   opacity: number;
+  baseLift: number;
   swipeEnabled: boolean;
   swipePct: number;
   truthTop: boolean;
@@ -51,7 +52,8 @@ const state: AppState = {
   baseLayer: 'rgb',
   leftOverlay: 'v3_p4',
   rightOverlay: 'glavitu',
-  opacity: 0.78,
+  opacity: 0.72,
+  baseLift: 0.10,
   swipeEnabled: true,
   swipePct: 50,
   truthTop: false,
@@ -86,8 +88,9 @@ function buildBaseStyle(): maplibregl.StyleSpecification {
         type: 'raster',
         source: 'esri_sat',
         paint: {
-          'raster-brightness-max': 0.88,
-          'raster-saturation': -0.1,
+          'raster-brightness-max': 1.0,
+          'raster-brightness-min': 0.04,
+          'raster-saturation': 0.05,
         },
       },
       {
@@ -130,6 +133,8 @@ const elSelLeft = document.getElementById('sel-left') as HTMLSelectElement;
 const elSelRight = document.getElementById('sel-right') as HTMLSelectElement;
 const elOpacitySlider = document.getElementById('opacity-slider') as HTMLInputElement;
 const elOpacityVal = document.getElementById('opacity-val') as HTMLSpanElement;
+const elBrightSlider = document.getElementById('bright-slider') as HTMLInputElement;
+const elBrightVal = document.getElementById('bright-val') as HTMLSpanElement;
 const elChkSwipe = document.getElementById('chk-swipe') as HTMLInputElement;
 const elChkTruthTop = document.getElementById('chk-truth-top') as HTMLInputElement;
 const elActiveLegend = document.getElementById('active-legend') as HTMLDivElement;
@@ -557,6 +562,7 @@ function renderActiveRasters() {
       mountImageLayer(mapRight, 'active-base', url, coords, 1.0, false);
     }
   }
+  updateBaseBrightness();
 
   // 2. Left overlay on mapLeft
   const leftMeta = OVERLAY_BY_KEY[state.leftOverlay];
@@ -599,6 +605,20 @@ function updateRasterOpacity() {
   for (const map of [mapLeft, mapRight]) {
     if (map.getLayer('active-overlay')) {
       map.setPaintProperty('active-overlay', 'raster-opacity', state.opacity);
+    }
+  }
+}
+
+function updateBaseBrightness() {
+  const lift = state.baseLift;
+  for (const map of [mapLeft, mapRight]) {
+    if (map.getLayer('active-base')) {
+      map.setPaintProperty('active-base', 'raster-brightness-min', lift);
+      map.setPaintProperty('active-base', 'raster-brightness-max', 1.0);
+      map.setPaintProperty('active-base', 'raster-contrast', Math.min(0.25, lift * 0.45));
+    }
+    if (map.getLayer('esri-sat-layer')) {
+      map.setPaintProperty('esri-sat-layer', 'raster-brightness-min', Math.max(0.04, lift * 0.8));
     }
   }
 }
@@ -1078,6 +1098,13 @@ function wireUI() {
     state.opacity = val / 100;
     elOpacityVal.textContent = `${val}%`;
     updateRasterOpacity();
+  });
+
+  elBrightSlider.addEventListener('input', () => {
+    const val = Number(elBrightSlider.value);
+    state.baseLift = val / 100;
+    elBrightVal.textContent = `+${val}%`;
+    updateBaseBrightness();
   });
 
   elChkSwipe.addEventListener('change', () => {
