@@ -71,11 +71,10 @@ function buildBaseStyle(): maplibregl.StyleSpecification {
         maxzoom: 18,
         attribution: 'Esri World Imagery · Maslov et al. (2025) · OlmoEarth v1.3',
       },
-      carto_labels: {
+      esri_labels: {
         type: 'raster',
         tiles: [
-          'https://a.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}@2x.png',
-          'https://b.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}@2x.png',
+          'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
         ],
         tileSize: 256,
         maxzoom: 18,
@@ -94,7 +93,7 @@ function buildBaseStyle(): maplibregl.StyleSpecification {
       {
         id: 'carto-labels-layer',
         type: 'raster',
-        source: 'carto_labels',
+        source: 'esri_labels',
         paint: {
           'raster-opacity': 0.65,
         },
@@ -635,7 +634,12 @@ function populateOverlaySelects() {
   makeOpts(elSelRight, state.rightOverlay);
 
   const hasP2 = state.activeFiles.has('v3_p2.png');
+  const hasGlav = state.activeFiles.has('glavitu.png');
   elBtnPresetP2.disabled = !hasP2;
+  const glavBtn = document.querySelector('[data-preset="v3_glav"]') as HTMLButtonElement | null;
+  if (glavBtn) {
+    glavBtn.disabled = !hasGlav;
+  }
   const diffBtn = document.querySelector('[data-preset="diff"]') as HTMLButtonElement | null;
   if (diffBtn) {
     diffBtn.disabled = !(state.activeFiles.has('diff_v3_p4_glav.png') || state.activeFiles.has('diff_v3_p2_glav.png'));
@@ -962,8 +966,9 @@ function applyPreset(preset: string) {
 
   switch (preset) {
     case 'v3_glav':
+      if (!state.activeFiles.has('glavitu.png')) return;
       state.leftOverlay = mainV3;
-      state.rightOverlay = state.activeFiles.has('glavitu.png') ? 'glavitu' : 'truth';
+      state.rightOverlay = 'glavitu';
       state.swipeEnabled = true;
       break;
     case 'v3_truth':
