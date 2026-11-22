@@ -44,8 +44,19 @@ export interface OverlayMeta {
 
 export const OVERLAY_CATALOG: OverlayMeta[] = [
   {
+    key: 'v31_p4',
+    label: 'OlmoEarth v3.1 (p=4, τ*=0.54 · 0.8964)',
+    shortLabel: 'OlmoEarth v3.1',
+    file: 'v31_p4.png',
+    legend: [
+      { color: '#06b6d4', text: 'Glace propre (v3.1)' },
+      { color: '#f97316', text: 'Glace sombre / débris (v3.1)' },
+      { color: '#e0f2fe', text: 'Contour prédit (τ*=0.54)' },
+    ],
+  },
+  {
     key: 'v3_p4',
-    label: 'OlmoEarth v3 (p=4, 3 classes)',
+    label: 'OlmoEarth v3 (p=4, 3 classes · 0.8921)',
     shortLabel: 'OlmoEarth v3 (p=4)',
     file: 'v3_p4.png',
     legend: [
@@ -97,6 +108,17 @@ export const OVERLAY_CATALOG: OverlayMeta[] = [
     ],
   },
   {
+    key: 'diff_v31_p4_glav',
+    label: 'Désaccord v3.1 vs GlaViTU',
+    shortLabel: 'Désaccord v3.1 vs GlaViTU',
+    file: 'diff_v31_p4_glav.png',
+    legend: [
+      { color: '#10b981', text: 'Seul OlmoEarth v3.1 a raison' },
+      { color: '#a855f7', text: 'Seul GlaViTU Global a raison' },
+      { color: '#f43f5e', text: 'Erreur commune aux 2 modèles' },
+    ],
+  },
+  {
     key: 'diff_v3_p4_glav',
     label: 'Désaccord v3 (p=4) vs GlaViTU',
     shortLabel: 'Désaccord v3 vs GlaViTU',
@@ -116,6 +138,17 @@ export const OVERLAY_CATALOG: OverlayMeta[] = [
       { color: '#10b981', text: 'Seul OlmoEarth v3 (p=2) a raison' },
       { color: '#a855f7', text: 'Seul GlaViTU Global a raison' },
       { color: '#f43f5e', text: 'Erreur commune' },
+    ],
+  },
+  {
+    key: 'v31_p4_err',
+    label: 'Erreurs OlmoEarth v3.1 (TP/FP/FN)',
+    shortLabel: 'Erreurs v3.1',
+    file: 'v31_p4_err.png',
+    legend: [
+      { color: '#10b981', text: 'Vrai positif (TP)' },
+      { color: '#f43f5e', text: 'Faux positif (FP · sur-détection)' },
+      { color: '#facc15', text: 'Faux négatif (FN · oublié)' },
     ],
   },
   {
@@ -228,13 +261,16 @@ export async function probeAvailableFiles(item: ExportedItem): Promise<Set<strin
     'swir.jpg',
     'dem.jpg',
     'truth.png',
+    'v31_p4.png',
     'v3_p4.png',
     'v3_p2.png',
     'v2.png',
     'glavitu.png',
+    'v31_p4_err.png',
     'v3_p4_err.png',
     'v3_p2_err.png',
     'glavitu_err.png',
+    'diff_v31_p4_glav.png',
     'diff_v3_p4_glav.png',
     'diff_v3_p2_glav.png',
     'flexivit_uncert.png',

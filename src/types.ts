@@ -16,6 +16,7 @@ export interface ExportedItem {
   shape: [number, number]; // [H, W] native 10m
   has_insar: boolean;
   metrics: {
+    v31_p4?: ModelMetric;
     v3_p4?: ModelMetric;
     v3_p2?: ModelMetric;
     v2?: ModelMetric;
@@ -82,14 +83,17 @@ export type BaseLayerKey = 'rgb' | 'swir' | 'dem' | 'sat';
 
 export type OverlayLayerKey =
   | 'none'
+  | 'v31_p4'
   | 'v3_p4'
   | 'v3_p2'
   | 'glavitu'
   | 'v2'
   | 'truth'
+  | 'v31_p4_err'
   | 'v3_p4_err'
   | 'v3_p2_err'
   | 'glavitu_err'
+  | 'diff_v31_p4_glav'
   | 'diff_v3_p4_glav'
   | 'diff_v3_p2_glav'
   | 'flexivit_uncert';

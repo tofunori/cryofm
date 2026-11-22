@@ -52,7 +52,7 @@ const state: AppState = {
   siteSort: 'default',
   globeMetric: 'v3_vs_glav',
   baseLayer: 'rgb',
-  leftOverlay: 'v3_p4',
+  leftOverlay: 'v31_p4',
   rightOverlay: 'glavitu',
   opacity: 0.72,
   baseLift: 0.10,
@@ -654,22 +654,29 @@ function populateOverlaySelects() {
     }
     return 'none';
   };
-  state.leftOverlay = fallback(state.leftOverlay, ['v3_p2', 'v3_p4', 'truth', 'none']);
+  state.leftOverlay = fallback(state.leftOverlay, ['v3_p2', 'v31_p4', 'v3_p4', 'truth', 'none']);
   state.rightOverlay = fallback(state.rightOverlay, ['glavitu', 'truth', 'v2', 'none']);
 
   makeOpts(elSelLeft, state.leftOverlay);
   makeOpts(elSelRight, state.rightOverlay);
 
   const hasP2 = state.activeFiles.has('v3_p2.png');
+  const hasV31 = state.activeFiles.has('v31_p4.png');
   const hasGlav = state.activeFiles.has('glavitu.png');
   elBtnPresetP2.disabled = !hasP2;
+  const v31Btn = document.getElementById('btn-preset-v31') as HTMLButtonElement | null;
+  if (v31Btn) v31Btn.disabled = !hasV31;
   const glavBtn = document.querySelector('[data-preset="v3_glav"]') as HTMLButtonElement | null;
   if (glavBtn) {
     glavBtn.disabled = !hasGlav;
   }
   const diffBtn = document.querySelector('[data-preset="diff"]') as HTMLButtonElement | null;
   if (diffBtn) {
-    diffBtn.disabled = !(state.activeFiles.has('diff_v3_p4_glav.png') || state.activeFiles.has('diff_v3_p2_glav.png'));
+    diffBtn.disabled = !(
+      state.activeFiles.has('diff_v31_p4_glav.png') ||
+      state.activeFiles.has('diff_v3_p4_glav.png') ||
+      state.activeFiles.has('diff_v3_p2_glav.png')
+    );
   }
 }
 
@@ -677,6 +684,15 @@ function renderItemMetrics(item: ExportedItem) {
   const m = item.metrics;
   const boxes: string[] = [];
 
+  if (m.v31_p4) {
+    const deb = m.v31_p4.deb_iou !== undefined && m.v31_p4.deb_iou >= 0 ? ` · Déb ${m.v31_p4.deb_iou.toFixed(3)}` : '';
+    boxes.push(`
+      <div class="mbox">
+        <div class="mbox-lbl">OlmoEarth v3.1 (τ*=0.54)</div>
+        <div class="mbox-val" style="color:var(--emerald)">${m.v31_p4.iou.toFixed(4)}</div>
+        <div class="mbox-sub">P ${m.v31_p4.prec.toFixed(3)} · R ${m.v31_p4.rec.toFixed(3)}${deb}</div>
+      </div>`);
+  }
   if (m.v3_p2) {
     boxes.push(`
       <div class="mbox">
@@ -695,7 +711,7 @@ function renderItemMetrics(item: ExportedItem) {
       </div>`);
   }
   if (m.glavitu) {
-    const refV3 = m.v3_p2?.iou ?? m.v3_p4?.iou;
+    const refV3 = m.v31_p4?.iou ?? m.v3_p2?.iou ?? m.v3_p4?.iou;
     const diff = refV3 !== undefined ? refV3 - m.glavitu.iou : null;
     const diffHtml =
       diff !== null
@@ -884,7 +900,7 @@ function filteredItems(): ExportedItem[] {
 
   if (state.siteSort === 'default') return base;
   const copy = [...base];
-  const scoreV3 = (it: ExportedItem) => it.metrics.v3_p2?.iou ?? it.metrics.v3_p4?.iou ?? -1;
+  const scoreV3 = (it: ExportedItem) => it.metrics.v31_p4?.iou ?? it.metrics.v3_p2?.iou ?? it.metrics.v3_p4?.iou ?? -1;
   const diffGlav = (it: ExportedItem) => {
     const v3 = scoreV3(it);
     const gl = it.metrics.glavitu?.iou;
@@ -925,7 +941,7 @@ function renderSiteList() {
   }
   elSiteList.innerHTML = list
     .map((it) => {
-      const m3 = it.metrics.v3_p2 ?? it.metrics.v3_p4;
+      const m3 = it.metrics.v31_p4 ?? it.metrics.v3_p2 ?? it.metrics.v3_p4;
       const mg = it.metrics.glavitu;
       const diff = m3 && mg ? m3.iou - mg.iou : null;
       const diffSpan =
@@ -1019,10 +1035,13 @@ function renderIndepTable() {
 // ── Presets & Controls wiring ────────────────────────────────────────
 function applyPreset(preset: string) {
   const hasP2 = state.activeFiles.has('v3_p2.png');
-  const mainV3: OverlayLayerKey = hasP2 ? 'v3_p2' : 'v3_p4';
-  const mainDiff: OverlayLayerKey = state.activeFiles.has('diff_v3_p2_glav.png')
-    ? 'diff_v3_p2_glav'
-    : 'diff_v3_p4_glav';
+  const hasV31 = state.activeFiles.has('v31_p4.png');
+  const mainV3: OverlayLayerKey = hasV31 ? 'v31_p4' : hasP2 ? 'v3_p2' : 'v3_p4';
+  const mainDiff: OverlayLayerKey = state.activeFiles.has('diff_v31_p4_glav.png')
+    ? 'diff_v31_p4_glav'
+    : state.activeFiles.has('diff_v3_p2_glav.png')
+      ? 'diff_v3_p2_glav'
+      : 'diff_v3_p4_glav';
 
   switch (preset) {
     case 'v3_glav':
@@ -1042,8 +1061,14 @@ function applyPreset(preset: string) {
       state.swipeEnabled = true;
       break;
     case 'err':
-      state.leftOverlay = hasP2 ? 'v3_p2_err' : 'v3_p4_err';
+      state.leftOverlay = hasV31 ? 'v31_p4_err' : hasP2 ? 'v3_p2_err' : 'v3_p4_err';
       state.rightOverlay = state.activeFiles.has('glavitu_err.png') ? 'glavitu_err' : 'truth';
+      state.swipeEnabled = true;
+      break;
+    case 'v31_v3':
+      if (!hasV31) return;
+      state.leftOverlay = 'v31_p4';
+      state.rightOverlay = 'v3_p4';
       state.swipeEnabled = true;
       break;
     case 'v3_v2':

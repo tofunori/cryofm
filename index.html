@@ -41,6 +41,11 @@
 
         <div class="global-metrics-bar" id="global-metrics-bar">
           <div class="gstat">
+            <span class="gstat-lbl">v3.1 (p=4 τ*)</span>
+            <span class="gstat-val emerald">0.8964</span>
+          </div>
+          <div class="gstat-sep"></div>
+          <div class="gstat">
             <span class="gstat-lbl">v3 (p=4 TTA4)</span>
             <span class="gstat-val cyan">0.8921</span>
           </div>
@@ -48,11 +53,6 @@
           <div class="gstat">
             <span class="gstat-lbl">GlaViTU Global</span>
             <span class="gstat-val violet">0.8940</span>
-          </div>
-          <div class="gstat-sep"></div>
-          <div class="gstat">
-            <span class="gstat-lbl">v2 (p=4)</span>
-            <span class="gstat-val muted">0.8703</span>
           </div>
           <div class="gstat-sep"></div>
           <div class="gstat" id="gstat-p2">
@@ -144,11 +144,11 @@
           <div class="ctrl-section">
             <div class="ctrl-title">Préréglages rapides</div>
             <div class="preset-grid" id="preset-grid">
-              <button class="preset-btn active" data-preset="v3_glav">v3 ↔ GlaViTU</button>
-              <button class="preset-btn" data-preset="v3_truth">v3 ↔ Vérité</button>
+              <button class="preset-btn active" data-preset="v3_glav">v3.1/v3 ↔ GlaViTU</button>
+              <button class="preset-btn" data-preset="v3_truth">Modèle ↔ Vérité</button>
               <button class="preset-btn" data-preset="diff">Désaccord</button>
-              <button class="preset-btn" data-preset="err">Erreurs v3</button>
-              <button class="preset-btn" data-preset="v3_v2">v3 ↔ v2</button>
+              <button class="preset-btn" data-preset="err">Erreurs</button>
+              <button class="preset-btn" data-preset="v31_v3" id="btn-preset-v31">v3.1 ↔ v3</button>
               <button class="preset-btn" data-preset="p2_p4" id="btn-preset-p2">p=2 ↔ p=4</button>
             </div>
           </div>
