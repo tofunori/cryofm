@@ -82,6 +82,16 @@
           </div>
           <div class="region-pills" id="region-pills"></div>
           <div class="globe-color-row">
+            <label for="site-sort">Trier les sites :</label>
+            <select id="site-sort">
+              <option value="default">Table 1 puis régions</option>
+              <option value="v3_wins">v3 bat GlaViTU (gains)</option>
+              <option value="glav_wins">GlaViTU bat v3 (erreurs)</option>
+              <option value="debris">Débris (IoU débris)</option>
+              <option value="hardest">Plus difficiles (IoU v3)</option>
+            </select>
+          </div>
+          <div class="globe-color-row">
             <label for="globe-metric">Couleur des 556 tuiles :</label>
             <select id="globe-metric">
               <option value="v3_vs_glav">Δ v3 − GlaViTU (région)</option>

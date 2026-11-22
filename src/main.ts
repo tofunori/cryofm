@@ -29,6 +29,7 @@ interface AppState {
   activeFiles: Set<string>;
   regionFilter: string;
   searchQuery: string;
+  siteSort: 'default' | 'v3_wins' | 'glav_wins' | 'debris' | 'hardest';
   globeMetric: GlobeMetricKey;
   baseLayer: BaseLayerKey;
   leftOverlay: OverlayLayerKey;
@@ -48,6 +49,7 @@ const state: AppState = {
   activeFiles: new Set(),
   regionFilter: 'ALL',
   searchQuery: '',
+  siteSort: 'default',
   globeMetric: 'v3_vs_glav',
   baseLayer: 'rgb',
   leftOverlay: 'v3_p4',
@@ -117,6 +119,7 @@ const elRightDrawer = document.getElementById('right-drawer') as HTMLElement;
 const elSiteList = document.getElementById('site-list') as HTMLDivElement;
 const elSiteSearch = document.getElementById('site-search') as HTMLInputElement;
 const elRegionPills = document.getElementById('region-pills') as HTMLDivElement;
+const elSiteSort = document.getElementById('site-sort') as HTMLSelectElement;
 const elGlobeMetric = document.getElementById('globe-metric') as HTMLSelectElement;
 const elCountSites = document.getElementById('count-sites') as HTMLSpanElement;
 const elRegionsTable = document.getElementById('regions-table') as HTMLDivElement;
@@ -264,7 +267,11 @@ function buildExportedBoxesGeoJSON(): {
 } {
   const polys: GeoJSON.Feature[] = [];
   const pins: GeoJSON.Feature[] = [];
+  const denseAll = state.items.length > 60;
   for (const item of state.items) {
+    // When all 556 tiles are exported, only draw persistent rings/boxes for the 4 independent scenes
+    // so the 556 colored dots remain crisp and directly clickable on the globe.
+    if (denseAll && item.kind !== 'independent_scene') continue;
     const [xmin, ymin, xmax, ymax] = item.bounds;
     polys.push({
       type: 'Feature',
@@ -864,7 +871,7 @@ function renderRegionPills() {
 
 function filteredItems(): ExportedItem[] {
   const q = state.searchQuery.trim().toLowerCase();
-  return state.items.filter((it) => {
+  const base = state.items.filter((it) => {
     if (state.regionFilter === 'INDEP' && it.kind !== 'independent_scene') return false;
     if (state.regionFilter !== 'ALL' && state.regionFilter !== 'INDEP' && it.region !== state.regionFilter)
       return false;
@@ -874,6 +881,39 @@ function filteredItems(): ExportedItem[] {
     }
     return true;
   });
+
+  if (state.siteSort === 'default') return base;
+  const copy = [...base];
+  const scoreV3 = (it: ExportedItem) => it.metrics.v3_p2?.iou ?? it.metrics.v3_p4?.iou ?? -1;
+  const diffGlav = (it: ExportedItem) => {
+    const v3 = scoreV3(it);
+    const gl = it.metrics.glavitu?.iou;
+    return v3 >= 0 && gl !== undefined ? v3 - gl : null;
+  };
+  copy.sort((a, b) => {
+    if (state.siteSort === 'v3_wins') {
+      const da = diffGlav(a) ?? -9;
+      const db = diffGlav(b) ?? -9;
+      return db - da;
+    }
+    if (state.siteSort === 'glav_wins') {
+      const da = diffGlav(a) ?? 9;
+      const db = diffGlav(b) ?? 9;
+      return da - db;
+    }
+    if (state.siteSort === 'debris') {
+      const da = a.metrics.v3_p2?.deb_iou ?? a.metrics.v3_p4?.deb_iou ?? -1;
+      const db = b.metrics.v3_p2?.deb_iou ?? b.metrics.v3_p4?.deb_iou ?? -1;
+      return db - da;
+    }
+    if (state.siteSort === 'hardest') {
+      const va = scoreV3(a);
+      const vb = scoreV3(b);
+      return (va < 0 ? 9 : va) - (vb < 0 ? 9 : vb);
+    }
+    return 0;
+  });
+  return copy;
 }
 
 function renderSiteList() {
@@ -1041,6 +1081,11 @@ function wireUI() {
 
   elSiteSearch.addEventListener('input', () => {
     state.searchQuery = elSiteSearch.value;
+    renderSiteList();
+  });
+
+  elSiteSort.addEventListener('change', () => {
+    state.siteSort = elSiteSort.value as AppState['siteSort'];
     renderSiteList();
   });
 
