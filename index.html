@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CryoFM — Atlas 10 m OlmoEarth v3 vs GlaViTU Global</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Dual synchronized MapLibre canvases for pixel-exact georeferenced swipe -->
+      <div id="map-stage">
+        <div id="map-left" class="map-canvas"></div>
+        <div id="map-right" class="map-canvas"></div>
+
+        <!-- Swipe curtain divider (visible in 10 m inspection mode when swipe enabled) -->
+        <div id="swipe-divider" class="hidden" aria-label="Rideau de comparaison">
+          <div class="swipe-line"></div>
+          <div class="swipe-handle" title="Glisser pour comparer gauche / droite">
+            <span>◀</span><span>▶</span>
+          </div>
+          <div class="swipe-pill swipe-pill-left" id="swipe-label-left">OlmoEarth v3</div>
+          <div class="swipe-pill swipe-pill-right" id="swipe-label-right">GlaViTU Global</div>
+        </div>
+      </div>
+
+      <!-- Top Header HUD -->
+      <header class="hud-top">
+        <div class="brand-card">
+          <div class="brand-dot"></div>
+          <div>
+            <h1>CryoFM <span class="badge-10m">10 m</span></h1>
+            <p class="brand-sub">OlmoEarth v1.3 vs GlaViTU Global · 556 tuiles + 4 scènes indépendantes</p>
+          </div>
+        </div>
+
+        <div class="global-metrics-bar" id="global-metrics-bar">
+          <div class="gstat">
+            <span class="gstat-lbl">v3 (p=4 TTA4)</span>
+            <span class="gstat-val cyan">0.8921</span>
+          </div>
+          <div class="gstat-sep"></div>
+          <div class="gstat">
+            <span class="gstat-lbl">GlaViTU Global</span>
+            <span class="gstat-val violet">0.8940</span>
+          </div>
+          <div class="gstat-sep"></div>
+          <div class="gstat">
+            <span class="gstat-lbl">v2 (p=4)</span>
+            <span class="gstat-val muted">0.8703</span>
+          </div>
+          <div class="gstat-sep"></div>
+          <div class="gstat" id="gstat-p2">
+            <span class="gstat-lbl">v3 (p=2)</span>
+            <span class="gstat-val amber">en cours…</span>
+          </div>
+        </div>
+
+        <div class="top-actions">
+          <button id="btn-globe" class="btn-chip active" title="Vue Globe 3D (Esc)">Globe 556</button>
+          <button id="btn-toggle-left" class="btn-chip" title="Afficher/masquer le panneau gauche">Panneau</button>
+        </div>
+      </header>
+
+      <!-- Left Navigation Drawer -->
+      <aside id="left-drawer" class="hud-panel left-drawer">
+        <div class="drawer-tabs">
+          <button class="dtab active" data-tab="sites">Sites 10 m <span id="count-sites" class="pill-n">0</span></button>
+          <button class="dtab" data-tab="regions">11 Régions</button>
+          <button class="dtab" data-tab="indep">Table 1</button>
+        </div>
+
+        <!-- Tab 1: 10 m exported sites -->
+        <div class="tab-pane active" id="tab-sites">
+          <div class="filter-row">
+            <input id="site-search" type="text" placeholder="Filtrer (ex. HMA, ALP, swiss, SC)…" />
+          </div>
+          <div class="region-pills" id="region-pills"></div>
+          <div class="globe-color-row">
+            <label for="globe-metric">Couleur des 556 tuiles :</label>
+            <select id="globe-metric">
+              <option value="v3_vs_glav">Δ v3 − GlaViTU (région)</option>
+              <option value="v3_vs_v2">Gain v3 − v2</option>
+              <option value="iou_v3">IoU OlmoEarth v3</option>
+              <option value="deb_v3">IoU Débris v3</option>
+              <option value="insar">Couverture InSAR</option>
+            </select>
+          </div>
+          <div id="site-list" class="site-list"></div>
+        </div>
+
+        <!-- Tab 2: 11 Regions scoreboard -->
+        <div class="tab-pane" id="tab-regions">
+          <p class="pane-note">
+            Moyenne par région sur les 556 tuiles de test Maslov (Opt+DEM). Cliquez une région pour zoomer.
+          </p>
+          <div id="regions-table" class="regions-table"></div>
+        </div>
+
+        <!-- Tab 3: Table 1 Independent Scenes -->
+        <div class="tab-pane" id="tab-indep">
+          <p class="pane-note">
+            4 scènes hors-domaine spatial et temporel (1998–2019, Table 1 de Maslov et al. 2025) évaluées pixel par pixel avec les poids réels.
+          </p>
+          <div id="indep-table" class="indep-table"></div>
+        </div>
+      </aside>
+
+      <!-- Right Inspector Drawer (Active when a 10 m item or tile is selected) -->
+      <aside id="right-drawer" class="hud-panel right-drawer hidden">
+        <div class="insp-header">
+          <div>
+            <div class="insp-badges" id="insp-badges"></div>
+            <h2 id="insp-title">—</h2>
+            <p id="insp-sub" class="insp-sub">—</p>
+          </div>
+          <div class="insp-nav-btns">
+            <button id="btn-prev-site" class="icon-btn" title="Site précédent (←)">‹</button>
+            <button id="btn-next-site" class="icon-btn" title="Site suivant (→)">›</button>
+            <button id="btn-close-insp" class="icon-btn" title="Fermer (Esc)">✕</button>
+          </div>
+        </div>
+
+        <!-- Exact real metrics for this item -->
+        <div id="insp-metrics" class="insp-metrics"></div>
+
+        <!-- 10 m Raster & Swipe controls (hidden if only 556-tile dot clicked without export) -->
+        <div id="raster-controls" class="raster-controls">
+          <div class="ctrl-section">
+            <div class="ctrl-title">Préréglages rapides</div>
+            <div class="preset-grid" id="preset-grid">
+              <button class="preset-btn active" data-preset="v3_glav">v3 ↔ GlaViTU</button>
+              <button class="preset-btn" data-preset="v3_truth">v3 ↔ Vérité</button>
+              <button class="preset-btn" data-preset="diff">Désaccord</button>
+              <button class="preset-btn" data-preset="err">Erreurs v3</button>
+              <button class="preset-btn" data-preset="v3_v2">v3 ↔ v2</button>
+              <button class="preset-btn" data-preset="p2_p4" id="btn-preset-p2">p=2 ↔ p=4</button>
+            </div>
+          </div>
+
+          <div class="ctrl-section">
+            <div class="ctrl-title">Image de fond (10 m)</div>
+            <div class="seg-group" id="base-group">
+              <button class="seg-btn active" data-base="rgb">RGB</button>
+              <button class="seg-btn" data-base="swir">SWIR</button>
+              <button class="seg-btn" data-base="dem">DEM</button>
+              <button class="seg-btn" data-base="sat">Satellite</button>
+            </div>
+          </div>
+
+          <div class="ctrl-section two-col">
+            <div>
+              <label class="ctrl-label left-dot" for="sel-left">Couche Gauche</label>
+              <select id="sel-left"></select>
+            </div>
+            <div>
+              <label class="ctrl-label right-dot" for="sel-right">Couche Droite</label>
+              <select id="sel-right"></select>
+            </div>
+          </div>
+
+          <div class="ctrl-section slider-row">
+            <div class="slider-head">
+              <span>Opacité des masques</span>
+              <span id="opacity-val" class="mono">78%</span>
+            </div>
+            <input id="opacity-slider" type="range" min="0" max="100" value="78" />
+          </div>
+
+          <div class="ctrl-section toggles-row">
+            <label class="chk">
+              <input type="checkbox" id="chk-swipe" checked />
+              <span>Rideau swipe actif (Espace)</span>
+            </label>
+            <label class="chk">
+              <input type="checkbox" id="chk-truth-top" />
+              <span>Superposer vérité terrain</span>
+            </label>
+          </div>
+
+          <div class="ctrl-section">
+            <div class="ctrl-title">Légende active</div>
+            <div id="active-legend" class="legend-grid"></div>
+          </div>
+        </div>
+
+        <div id="no-export-note" class="no-export-note hidden">
+          Cette tuile fait partie des 556 tuiles de test globales, mais n'a pas d'export raster 10 m dans le lot courant. Cliquez un site marqué <strong>10 m</strong> pour activer le rideau pixel-à-pixel.
+        </div>
+      </aside>
+
+      <!-- Bottom Telemetry Bar -->
+      <footer class="hud-bottom">
+        <div class="telemetry-pill">
+          <span id="hud-coords" class="mono">0.0000° N, 0.0000° E</span>
+          <span class="sep">·</span>
+          <span id="hud-zoom" class="mono">z 2.2</span>
+          <span class="sep">·</span>
+          <span id="hud-status">Chargement des données…</span>
+        </div>
+        <div class="shortcut-pill">
+          <span><kbd>1</kbd>–<kbd>5</kbd> préréglages</span>
+          <span><kbd>Espace</kbd> rideau</span>
+          <span><kbd>←</kbd><kbd>→</kbd> sites</span>
+          <span><kbd>Esc</kbd> globe</span>
+        </div>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
