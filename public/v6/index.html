@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OlmoGlaViTU v6 vs RGI v7 vs Papier Ch. 1 — 82 fenêtres / 10 régions</title>
+  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <style>
+    :root {
+      --bg: #0b111b;
+      --panel: rgba(13, 20, 32, 0.95);
+      --card: rgba(24, 34, 52, 0.9);
+      --border: rgba(148, 163, 184, 0.22);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --clean: #10b981;
+      --dark: #f43f5e;
+      --ch1: #facc15;
+      --rgi: #38bdf8;
+      --diff: #e81d82;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; width: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; overflow: hidden; }
+    #app { display: flex; height: 100vh; height: 100dvh; width: 100vw; }
+    #sidebar {
+      width: 390px; min-width: 340px; max-width: 430px; height: 100%;
+      background: var(--panel); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; z-index: 10;
+    }
+    .sb-head { padding: 12px 15px 9px; border-bottom: 1px solid var(--border); }
+    .sb-head h1 { font-size: 14.5px; font-weight: 700; color: #f8fafc; }
+    .sb-head .sub { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+    .global-kpis {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px;
+      padding: 8px 12px; border-bottom: 1px solid var(--border); background: rgba(15,23,42,0.75);
+    }
+    .kpi { background: var(--card); border: 1px solid var(--border); border-radius: 7px; padding: 5px 6px; text-align: center; }
+    .kpi .v { font-size: 13px; font-weight: 700; color: #f8fafc; font-variant-numeric: tabular-nums; }
+    .kpi .l { font-size: 9px; color: var(--muted); margin-top: 1px; text-transform: uppercase; letter-spacing: 0.03em; }
+    .filters { padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+    .filter-row { display: flex; gap: 6px; }
+    input[type="text"], select {
+      background: #0f172a; color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 5px 8px; font-size: 11.5px; outline: none;
+    }
+    input[type="text"] { flex: 1; }
+    select { flex: 1; }
+    input:focus, select:focus { border-color: var(--accent); }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 4px; }
+    .pill {
+      font-size: 10px; padding: 2.5px 6.5px; border-radius: 999px; cursor: pointer;
+      border: 1px solid var(--border); background: rgba(30, 41, 59, 0.7); color: var(--muted);
+    }
+    .pill:hover { color: #fff; border-color: rgba(148,163,184,0.5); }
+    .pill.active { background: #0284c7; color: #fff; border-color: #38bdf8; font-weight: 600; }
+    #site-list { flex: 1; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+    .site-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+      padding: 8px 10px; cursor: pointer; transition: border-color 0.12s, background 0.12s;
+    }
+    .site-card:hover { border-color: rgba(56, 189, 248, 0.55); background: rgba(30, 44, 68, 0.95); }
+    .site-card.active { border-color: #38bdf8; background: rgba(14, 52, 84, 0.92); box-shadow: 0 0 0 1px rgba(56,189,248,0.4); }
+    .sc-top { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+    .sc-name { font-size: 12.5px; font-weight: 650; color: #f8fafc; }
+    .sc-reg { font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 4px; background: rgba(56,189,248,0.16); color: #7dd3fc; }
+    .sc-cat { font-size: 10.5px; color: var(--muted); margin-top: 1.5px; }
+    .sc-bars { display: flex; gap: 7px; margin-top: 4px; font-size: 10.5px; font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+    .tag-dark { color: #fda4af; font-weight: 600; }
+    .tag-ch1 { color: #fde047; }
+    .tag-recov { color: #f472b6; font-weight: 650; }
+
+    #main-pane { flex: 1; display: flex; flex-direction: column; height: 100%; position: relative; overflow: hidden; }
+    #topbar {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 8px 14px; background: var(--panel); border-bottom: 1px solid var(--border); z-index: 12;
+    }
+    .mode-tabs { display: inline-flex; gap: 3px; background: #0f172a; border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
+    .mode-tab {
+      font-size: 11.5px; padding: 5px 11px; border-radius: 6px; border: none; cursor: pointer;
+      background: transparent; color: var(--muted); font-weight: 600;
+    }
+    .mode-tab.active { background: #0284c7; color: #fff; }
+    .tb-right { display: flex; align-items: center; gap: 8px; font-size: 11.5px; }
+    .mini-btn {
+      font-size: 11px; padding: 5px 9px; border-radius: 6px; cursor: pointer;
+      border: 1px solid var(--border); background: #1e293b; color: #e2e8f0; font-weight: 600;
+    }
+    .mini-btn:hover { background: #334155; border-color: #60a5fa; }
+    .mini-btn.active { background: #1d4ed8; border-color: #60a5fa; color: #fff; }
+
+    #stage { flex: 1; position: relative; overflow: hidden; }
+    #map { position: absolute; inset: 0; width: 100%; height: 100%; }
+    #hud-overlay {
+      position: absolute; top: 10px; left: 10px; right: 10px; pointer-events: none;
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; z-index: 5;
+    }
+    .hud-box {
+      pointer-events: auto; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(8px);
+      box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+    }
+    #layer-panel { width: 295px; }
+    #layer-panel h3 { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 6px; }
+    .chk-row { display: flex; align-items: center; justify-content: space-between; padding: 3.5px 0; font-size: 11.5px; cursor: pointer; }
+    .chk-left { display: flex; align-items: center; gap: 7px; }
+    .swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+    .swatch-line { width: 14px; height: 3px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
+    .slider-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 11px; color: var(--muted); }
+    .slider-row input { flex: 1; accent-color: #38bdf8; }
+    .legend-diff { margin-top: 7px; padding-top: 6px; border-top: 1px solid var(--border); font-size: 10px; color: var(--muted); display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+    .ld-item { display: flex; align-items: center; gap: 5px; }
+
+    #detail-panel { width: 335px; }
+    #detail-panel h2 { font-size: 13.5px; font-weight: 700; color: #f8fafc; }
+    #detail-panel .d-sub { font-size: 10.5px; color: var(--muted); margin-top: 2px; line-height: 1.3; }
+    .metric-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; margin-top: 8px; }
+    .m-item { background: rgba(15, 23, 42, 0.85); border: 1px solid var(--border); border-radius: 6px; padding: 5px 7px; }
+    .m-item .mv { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .m-item .ml { font-size: 9.5px; color: var(--muted); margin-top: 1px; }
+
+    /* Mode Rideau A|B et Triptyque */
+    #compare-view {
+      display: none; position: absolute; inset: 0; background: #070b12; z-index: 8;
+      flex-direction: column; padding: 12px; gap: 10px; overflow: auto;
+    }
+    .cmp-bar {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+      background: var(--card); border: 1px solid var(--border); border-radius: 9px; padding: 8px 12px; font-size: 12px;
+    }
+    #swipe-stage {
+      position: relative; flex: 1; min-height: 460px; display: flex; align-items: center; justify-content: center;
+      background: #05080f; border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+    }
+    #swipe-box { position: relative; aspect-ratio: 1 / 1; height: min(100%, 760px); max-width: 100%; touch-action: none; }
+    #swipe-canvas { width: 100%; height: 100%; display: block; border-radius: 6px; }
+    #swipe-handle {
+      position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: #fff;
+      cursor: ew-resize; box-shadow: 0 0 12px rgba(0,0,0,0.8); touch-action: none;
+    }
+    #swipe-knob {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      width: 34px; height: 34px; border-radius: 50%; background: #fff; color: #0f172a;
+      display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.6); user-select: none;
+    }
+    .swipe-badge {
+      position: absolute; top: 10px; padding: 4px 9px; border-radius: 6px;
+      background: rgba(11,17,27,0.85); color: #f8fafc; font-size: 11.5px; font-weight: 650;
+      border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; pointer-events: none;
+    }
+    #triptych-grid {
+      display: none; flex: 1; grid-template-columns: repeat(3, 1fr); gap: 10px; align-items: start;
+    }
+    .tri-card { background: var(--card); border: 1px solid var(--border); border-radius: 9px; overflow: hidden; display: flex; flex-direction: column; }
+    .tri-head { padding: 7px 10px; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); background: #0f172a; }
+    .tri-card canvas { width: 100%; aspect-ratio: 1 / 1; display: block; }
+
+    #region-modal {
+      display: none; position: absolute; bottom: 14px; left: 14px; right: 14px; max-height: 60vh;
+      overflow: auto; z-index: 25; background: rgba(10, 15, 26, 0.98);
+      border: 1px solid #38bdf8; border-radius: 10px; padding: 14px; box-shadow: 0 14px 44px rgba(0,0,0,0.75);
+    }
+    #region-modal table { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 8px; font-variant-numeric: tabular-nums; }
+    #region-modal th, #region-modal td { padding: 5px 7px; border-bottom: 1px solid var(--border); text-align: right; }
+    #region-modal th:first-child, #region-modal td:first-child { text-align: left; }
+    #region-modal th { color: #7dd3fc; font-weight: 650; }
+
+    .mob-only { display: none; }
+    #mob-stats { display: none; }
+    @media (max-width: 860px) {
+      .mob-only { display: inline-flex; align-items: center; gap: 4px; }
+      #sidebar {
+        position: fixed; inset: 0; width: 100vw; min-width: 0; max-width: 100vw; z-index: 40;
+        transform: translateX(-105%); transition: transform 0.2s ease;
+      }
+      #sidebar.open { transform: translateX(0); }
+      #topbar { padding: 6px 8px; gap: 5px; }
+      .mode-tab { font-size: 11px; padding: 5px 8px; }
+      .tb-right { width: 100%; justify-content: space-between; gap: 5px; font-size: 11px; flex-wrap: wrap; }
+      #hud-overlay { flex-direction: column; top: 6px; left: 6px; right: 6px; }
+      #layer-panel, #detail-panel { display: none; width: 100%; max-height: 58dvh; overflow-y: auto; }
+      #layer-panel.mob-open, #detail-panel.mob-open { display: block; }
+      #mob-stats {
+        display: flex; align-items: center; justify-content: space-between; gap: 6px;
+        position: absolute; left: 8px; right: 8px; bottom: 10px; z-index: 6;
+        background: rgba(11, 17, 27, 0.92); border: 1px solid var(--border); border-radius: 10px;
+        padding: 6px 8px; backdrop-filter: blur(8px); font-size: 11px;
+      }
+      #mob-stats .ms-mid { flex: 1; min-width: 0; text-align: center; line-height: 1.25; }
+      #mob-stats .ms-name { font-weight: 700; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #mob-stats .ms-vals { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+      #swipe-stage { min-height: 280px; padding: 4px; }
+      #swipe-box { width: 100%; height: auto; max-height: calc(100dvh - 210px); }
+      #triptych-grid { grid-template-columns: 1fr; }
+      #region-modal { left: 6px; right: 6px; bottom: 6px; max-height: 75dvh; padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div class="sb-head">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <h1>OlmoGlaViTU v6 vs RGI v7 vs Papier Ch. 1</h1>
+        <button class="mini-btn mob-only" id="btn-mob-close-list">✕ Carte</button>
+      </div>
+      <div class="sub">10 régions Ouest Amérique du Nord · Sentinel-2 août 2021–2023 · Focus grandes langues débrisées Alaska</div>
+    </div>
+    <div class="global-kpis">
+      <div class="kpi"><div class="v" id="gk-sites">—</div><div class="l">Fenêtres</div></div>
+      <div class="kpi"><div class="v" id="gk-rgi" style="color:var(--rgi)">—</div><div class="l">RGI v7 km²</div></div>
+      <div class="kpi"><div class="v" id="gk-ch1" style="color:var(--ch1)">—</div><div class="l">Papier Ch.1</div></div>
+      <div class="kpi"><div class="v" id="gk-v6" style="color:var(--clean)">—</div><div class="l">v6 Total</div></div>
+    </div>
+    <div class="filters">
+      <div class="filter-row">
+        <input type="text" id="search-box" placeholder="Chercher glacier (Kennicott, Ruth, Bering, Peyto...)" />
+        <select id="sort-by">
+          <option value="recov_desc">Trier : Débris récupérés (km²)</option>
+          <option value="dark_pct_desc">Trier : % Sombre / débris v6</option>
+          <option value="region">Trier : Région RGI</option>
+          <option value="area_desc">Trier : Aire RGI (km²)</option>
+          <option value="name">Trier : Nom A→Z</option>
+        </select>
+      </div>
+      <div class="pill-row" id="region-pills"></div>
+    </div>
+    <div id="site-list"></div>
+  </aside>
+
+  <div id="main-pane">
+    <div id="topbar">
+      <button class="mini-btn mob-only" id="btn-mob-list">☰ Glaciers</button>
+      <div class="mode-tabs" id="mode-tabs">
+        <button class="mode-tab active" data-mode="map">1. Carte</button>
+        <button class="mode-tab" data-mode="swipe">2. Rideau A|B</button>
+        <button class="mode-tab" data-mode="triptych">3. Triptyque</button>
+      </div>
+      <div class="tb-right">
+        <button class="mini-btn mob-only" id="btn-mob-layers">Couches</button>
+        <button class="mini-btn mob-only" id="btn-mob-info">Infos</button>
+        <span>S2 :</span>
+        <button class="mini-btn bg-btn active" data-bg="rgb">RGB</button>
+        <button class="mini-btn bg-btn" data-bg="swir">SWIR</button>
+        <button class="mini-btn bg-btn" data-bg="none">Esri</button>
+        <span style="margin-left:4px;color:var(--muted)">Opacité</span>
+        <input type="range" id="opacity-slider" min="0" max="100" value="72" style="width:85px;accent-color:#38bdf8" />
+        <span id="opacity-val" style="width:32px;font-variant-numeric:tabular-nums">72%</span>
+        <button class="mini-btn" id="btn-fit-all">Vue 10 régions</button>
+        <button class="mini-btn" id="btn-table">Bilan 10 régions</button>
+        <button class="mini-btn" id="btn-figs">Figures (11)</button>
+        <a class="mini-btn" href="alaska_full.html" style="text-decoration:none;background:#9f1239;border-color:#f43f5e;color:#fff;">3 régions 100 % (15 914)</a>
+      </div>
+    </div>
+
+    <div id="stage">
+      <!-- MODE 1 : Carte MapLibre GL -->
+      <div id="map"></div>
+      <div id="hud-overlay">
+        <div class="hud-box" id="layer-panel">
+          <h3>Couches comparées</h3>
+          <label class="chk-row"><span class="chk-left"><input type="checkbox" id="chk-rgi" checked /><span class="swatch-line" style="background:#38bdf8"></span>RGI v7 (~2000)</span></label>
+          <label class="chk-row"><span class="chk-left"><input type="checkbox" id="chk-v6-line" checked /><span class="swatch-line" style="background:#10b981"></span>Contour vecteur v6</span></label>
+          <label class="chk-row"><span class="chk-left"><input type="checkbox" id="chk-v6-cls" /><span class="swatch" style="background:linear-gradient(135deg,#10b981 50%,#f43f5e 50%)"></span>v6 Propre (vert) + Débris (rose)</span></label>
+          <label class="chk-row"><span class="chk-left"><input type="checkbox" id="chk-ch1" /><span class="swatch" style="background:#facc15"></span>Papier Ch. 1 (Red/SWIR&gt;2)</span></label>
+          <label class="chk-row"><span class="chk-left"><input type="checkbox" id="chk-diff" checked /><span class="swatch" style="background:#e81d82"></span>Différence v6 vs Papier Ch. 1</span></label>
+          <div class="legend-diff">
+            <div class="ld-item"><span class="swatch" style="background:#e81d82"></span>v6 récupère (débris RGI)</div>
+            <div class="ld-item"><span class="swatch" style="background:#38bdf8"></span>Accord v6 ∩ Ch. 1</div>
+            <div class="ld-item"><span class="swatch" style="background:#a855f7"></span>v6 hors RGI v7</div>
+            <div class="ld-item"><span class="swatch" style="background:#f97316"></span>Ch. 1 seul (rejeté v6)</div>
+          </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:6px;">Clavier : ← / → glacier · 1/2/3 mode · R RGB · S SWIR</div>
+        </div>
+
+        <div class="hud-box" id="detail-panel">
+          <h2 id="d-name">Chargement…</h2>
+          <div class="d-sub" id="d-sub"></div>
+          <div class="metric-grid" id="d-metrics"></div>
+          <div class="d-sub" id="d-named" style="margin-top:6px;"></div>
+        </div>
+      </div>
+
+      <div id="mob-stats">
+        <button class="mini-btn" id="mob-prev">◀</button>
+        <div class="ms-mid" id="mob-mid">
+          <div class="ms-name" id="ms-name">Chargement…</div>
+          <div class="ms-vals" id="ms-vals"></div>
+        </div>
+        <button class="mini-btn" id="mob-next">▶</button>
+      </div>
+
+      <!-- MODES 2 & 3 : Rideau A|B et Triptyque haute résolution sur vraies images Sentinel-2 -->
+      <div id="compare-view">
+        <div class="cmp-bar">
+          <div><b id="cmp-title">—</b> <span id="cmp-sub" style="color:var(--muted);margin-left:6px;"></span></div>
+          <div id="swipe-selects" style="display:flex;align-items:center;gap:8px;">
+            <label>Gauche (A) :
+              <select id="swipe-left">
+                <option value="ch1" selected>Papier Ch. 1 (Red/SWIR&gt;2)</option>
+                <option value="rgi">RGI v7 (~2000)</option>
+                <option value="none">Sentinel-2 brut seul</option>
+              </select>
+            </label>
+            <label>Droite (B) :
+              <select id="swipe-right">
+                <option value="v6" selected>OlmoGlaViTU v6 (Propre+Débris)</option>
+                <option value="diff">Différence v6 vs Papier Ch. 1</option>
+                <option value="rgi">RGI v7 (~2000)</option>
+              </select>
+            </label>
+            <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="cmp-rgi-line" checked /> Contour RGI v7</label>
+          </div>
+        </div>
+
+        <div id="swipe-stage">
+          <div id="swipe-box">
+            <canvas id="swipe-canvas"></canvas>
+            <div id="swipe-handle">
+              <div id="swipe-knob">⇄</div>
+              <div class="swipe-badge" id="badge-left" style="right:10px;">Papier Ch. 1</div>
+              <div class="swipe-badge" id="badge-right" style="left:10px;">OlmoGlaViTU v6</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="triptych-grid">
+          <div class="tri-card">
+            <div class="tri-head"><span style="color:var(--rgi)">1. RGI v7 (~2000)</span><span id="tri-rgi-v"></span></div>
+            <canvas id="tri-c1"></canvas>
+          </div>
+          <div class="tri-card">
+            <div class="tri-head"><span style="color:var(--ch1)">2. Papier Ch. 1 (Red/SWIR&gt;2)</span><span id="tri-ch1-v"></span></div>
+            <canvas id="tri-c2"></canvas>
+          </div>
+          <div class="tri-card">
+            <div class="tri-head"><span style="color:var(--clean)">3. OlmoGlaViTU v6 (Propre + Débris)</span><span id="tri-v6-v"></span></div>
+            <canvas id="tri-c3"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div id="region-modal">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <h3 style="font-size:13.5px;color:#f8fafc;">Synthèse quantitative des 10 régions — RGI v7 vs Papier Ch. 1 vs OlmoGlaViTU v6</h3>
+          <button class="mini-btn" id="btn-close-table">Fermer</button>
+        </div>
+        <div id="region-table-body"></div>
+      </div>
+
+      <div id="figs-modal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(7,11,18,0.97);overflow-y:auto;padding:14px;">
+        <div style="max-width:1020px;margin:0 auto;">
+          <div style="display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:rgba(7,11,18,0.95);padding:8px 0;border-bottom:1px solid var(--border);margin-bottom:12px;">
+            <h3 style="font-size:14px;color:#f8fafc;">Galerie des 11 figures haute résolution (300 dpi)</h3>
+            <button class="mini-btn" id="btn-close-figs">✕ Retour carte</button>
+          </div>
+          <div id="figs-gallery" style="display:flex;flex-direction:column;gap:16px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA_BASE = "https://cryofm-data.thierrystpierre.com/ch1_v6";
+let MANIFEST = null;
+let ACTIVE_REGION = "ALL";
+let ACTIVE_SITE = null;
+let VIEW_MODE = "map"; // map | swipe | triptych
+let BG_MODE = "rgb";   // rgb | swir | none
+let SWIPE_X = 0.50;
+let FILTERED = [];
+let LOADED_MAP_ID = null;
+const ASSET_CACHE = {}; // site_id -> { rgb, swir, v6_cls, ch1, diff, rgi_gj, v6_gj }
+
+const map = new maplibregl.Map({
+  container: "map",
+  style: {
+    version: 8,
+    glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+    sources: {
+      esri: {
+        type: "raster",
+        tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+        tileSize: 256,
+        attribution: "Esri · Sentinel-2 août 2021–2023 · Copernicus GLO-30 · RGI v7.0"
+      }
+    },
+    layers: [{ id: "esri-base", type: "raster", source: "esri" }]
+  },
+  center: [-138.0, 58.5],
+  zoom: 4.1
+});
+map.addControl(new maplibregl.NavigationControl(), "bottom-right");
+map.addControl(new maplibregl.ScaleControl({ maxWidth: 150, unit: "metric" }), "bottom-left");
+
+function fmt(x, d=1) { return (x === undefined || x === null || Number.isNaN(x)) ? "—" : Number(x).toFixed(d); }
+function lonToMercX(lon) { return lon * 20037508.34 / 180.0; }
+function latToMercY(lat) {
+  const rad = Math.max(-85, Math.min(85, lat)) * Math.PI / 180.0;
+  return Math.log(Math.tan(Math.PI / 4.0 + rad / 2.0)) * 20037508.34 / Math.PI;
+}
+
+function loadImg(url) {
+  return new Promise((res, rej) => {
+    const im = new Image();
+    im.crossOrigin = "anonymous";
+    im.onload = () => res(im);
+    im.onerror = rej;
+    im.src = url;
+  });
+}
+
+async function ensureAssets(site) {
+  if (ASSET_CACHE[site.site_id]) return ASSET_CACHE[site.site_id];
+  const base = `${DATA_BASE}/sites/${site.site_id}`;
+  const [rgb, swir, v6_cls, ch1, diff, rgi_gj, v6_gj] = await Promise.all([
+    loadImg(`${base}/rgb.jpg`),
+    loadImg(`${base}/swir.jpg`),
+    loadImg(`${base}/v6_classes.png`),
+    loadImg(`${base}/ch1_paper.png`),
+    loadImg(`${base}/diff_v6_ch1.png`),
+    fetch(`${DATA_BASE}/rgi_clips/${site.site_id}.geojson`).then(r => r.json()),
+    fetch(`${base}/v6_outline.geojson`).then(r => r.json()),
+  ]);
+  const pack = { rgb, swir, v6_cls, ch1, diff, rgi_gj, v6_gj };
+  ASSET_CACHE[site.site_id] = pack;
+  return pack;
+}
+
+function drawGeoJSON(ctx, gj, coords, w, h, strokeStyle, lineWidth=1.8, dash=[]) {
+  // coords: [TL, TR, BR, BL] en WGS84 correspondant exactement au rectangle EPSG:3857 de l'image
+  const minX = lonToMercX(coords[0][0]), maxX = lonToMercX(coords[1][0]);
+  const maxY = latToMercY(coords[0][1]), minY = latToMercY(coords[2][1]);
+  const sx = w / (maxX - minX), sy = h / (maxY - minY);
+  ctx.save();
+  ctx.strokeStyle = strokeStyle;
+  ctx.lineWidth = lineWidth;
+  ctx.setLineDash(dash);
+  const drawRing = ring => {
+    if (!ring || ring.length < 2) return;
+    ctx.beginPath();
+    for (let i = 0; i < ring.length; i++) {
+      const px = (lonToMercX(ring[i][0]) - minX) * sx;
+      const py = (maxY - latToMercY(ring[i][1])) * sy;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  };
+  for (const f of (gj.features || [])) {
+    const g = f.geometry;
+    if (!g) continue;
+    if (g.type === "Polygon") g.coordinates.forEach(drawRing);
+    else if (g.type === "MultiPolygon") g.coordinates.forEach(p => p.forEach(drawRing));
+  }
+  ctx.restore();
+}
+
+function drawCompareLayer(ctx, pack, site, w, h, modeKey, showRgi) {
+  const op = Number(document.getElementById("opacity-slider").value) / 100.0;
+  const bgImg = (BG_MODE === "swir") ? pack.swir : pack.rgb;
+  ctx.drawImage(bgImg, 0, 0, w, h);
+  ctx.save();
+  ctx.globalAlpha = op;
+  if (modeKey === "ch1") ctx.drawImage(pack.ch1, 0, 0, w, h);
+  else if (modeKey === "v6") ctx.drawImage(pack.v6_cls, 0, 0, w, h);
+  else if (modeKey === "diff") ctx.drawImage(pack.diff, 0, 0, w, h);
+  ctx.restore();
+  if (modeKey === "v6") drawGeoJSON(ctx, pack.v6_gj, site.image_coords, w, h, "#10b981", 1.7, []);
+  if (showRgi || modeKey === "rgi") drawGeoJSON(ctx, pack.rgi_gj, site.image_coords, w, h, "#38bdf8", modeKey === "rgi" ? 2.2 : 1.7, [6, 3]);
+}
+
+async function renderCompare() {
+  if (!ACTIVE_SITE || VIEW_MODE === "map") return;
+  const site = ACTIVE_SITE;
+  const pack = await ensureAssets(site);
+  document.getElementById("cmp-title").textContent = `${site.name} (${site.region} · ${site.region_label})`;
+  document.getElementById("cmp-sub").textContent = `RGI ${fmt(site.rgi_km2,1)} km² · Ch.1 ${fmt(site.ch1_paper_km2,1)} km² · v6 ${fmt(site.v6_total_km2,1)} km² (Sombre ${fmt(site.v6_dark_pct,0)}%, +${fmt(site.v6_recov_in_rgi_km2,1)} km² récupérés dans RGI)`;
+
+  const showRgi = document.getElementById("cmp-rgi-line").checked;
+  if (VIEW_MODE === "swipe") {
+    document.getElementById("swipe-stage").style.display = "flex";
+    document.getElementById("swipe-selects").style.display = "flex";
+    document.getElementById("triptych-grid").style.display = "none";
+    const c = document.getElementById("swipe-canvas");
+    const r = c.getBoundingClientRect();
+    const s = Math.max(300, Math.round(r.width));
+    c.width = s; c.height = s;
+    const ctx = c.getContext("2d");
+    const leftK = document.getElementById("swipe-left").value;
+    const rightK = document.getElementById("swipe-right").value;
+    const labels = { ch1:"Papier Ch. 1 (Red/SWIR>2)", rgi:"RGI v7 (~2000)", v6:"OlmoGlaViTU v6 (Propre+Débris)", diff:"Différence v6 vs Ch. 1", none:"Sentinel-2 brut" };
+    document.getElementById("badge-left").textContent = labels[leftK];
+    document.getElementById("badge-right").textContent = labels[rightK];
+    document.getElementById("swipe-handle").style.left = `${SWIPE_X * 100}%`;
+    const cut = s * SWIPE_X;
+
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, cut, s); ctx.clip();
+    drawCompareLayer(ctx, pack, site, s, s, leftK, showRgi);
+    ctx.restore();
+
+    ctx.save(); ctx.beginPath(); ctx.rect(cut, 0, s - cut, s); ctx.clip();
+    drawCompareLayer(ctx, pack, site, s, s, rightK, showRgi);
+    ctx.restore();
+  } else {
+    document.getElementById("swipe-stage").style.display = "none";
+    document.getElementById("swipe-selects").style.display = "none";
+    document.getElementById("triptych-grid").style.display = "grid";
+    document.getElementById("tri-rgi-v").textContent = `${fmt(site.rgi_km2,1)} km²`;
+    document.getElementById("tri-ch1-v").textContent = `${fmt(site.ch1_paper_km2,1)} km²`;
+    document.getElementById("tri-v6-v").textContent = `${fmt(site.v6_total_km2,1)} km² (${fmt(site.v6_dark_pct,0)}% sombre)`;
+    [["tri-c1", "rgi"], ["tri-c2", "ch1"], ["tri-c3", "v6"]].forEach(([cid, k]) => {
+      const c = document.getElementById(cid);
+      const s = Math.max(260, Math.round(c.getBoundingClientRect().width));
+      c.width = s; c.height = s;
+      drawCompareLayer(c.getContext("2d"), pack, site, s, s, k, true);
+    });
+  }
+}
+
+function applyVisibility() {
+  const op = Number(document.getElementById("opacity-slider").value) / 100.0;
+  document.getElementById("opacity-val").textContent = Math.round(op * 100) + "%";
+  const setVis = (id, vis, opacity=null) => {
+    if (!map.getLayer(id)) return;
+    map.setLayoutProperty(id, "visibility", vis ? "visible" : "none");
+    if (opacity !== null) map.setPaintProperty(id, "raster-opacity", opacity);
+  };
+  const showRgi = document.getElementById("chk-rgi").checked;
+  const showV6Line = document.getElementById("chk-v6-line").checked;
+  const showV6Cls = document.getElementById("chk-v6-cls").checked;
+  const showCh1 = document.getElementById("chk-ch1").checked;
+  const showDiff = document.getElementById("chk-diff").checked;
+
+  setVis("ly-rgb", BG_MODE === "rgb", 1.0);
+  setVis("ly-swir", BG_MODE === "swir", 1.0);
+  setVis("ly-v6-cls", showV6Cls, op);
+  setVis("ly-ch1", showCh1, op);
+  setVis("ly-diff", showDiff, op);
+
+  // Couches vectorielles CONTINUES sur les 82 fenêtres (navigation libre sans clic !)
+  const setV = (id, vis, fillProp=null, fillVal=null) => {
+    if (!map.getLayer(id)) return;
+    map.setLayoutProperty(id, "visibility", vis ? "visible" : "none");
+    if (fillProp && fillVal !== null) map.setPaintProperty(id, fillProp, fillVal);
+  };
+  setV("glob-rgi-fill", showRgi);
+  setV("glob-rgi-line", showRgi);
+  setV("glob-v6-line", showV6Line);
+  setV("glob-v6-dark-fill", showV6Cls || showV6Line, "fill-opacity", showV6Cls ? op * 0.65 : 0.28);
+  setV("glob-ch1-fill", showCh1, "fill-opacity", op * 0.55);
+  // Éviter la double superposition vecteur + raster 10 m sur la fenêtre active
+  const notActiveFilter = LOADED_MAP_ID ? ["!=", ["get", "site_id"], LOADED_MAP_ID] : null;
+  if (map.getLayer("glob-v6-dark-fill")) map.setFilter("glob-v6-dark-fill", (showV6Cls || showDiff) ? notActiveFilter : null);
+  if (map.getLayer("glob-ch1-fill")) map.setFilter("glob-ch1-fill", showCh1 ? notActiveFilter : null);
+  if (VIEW_MODE !== "map") renderCompare();
+}
+
+function clearSiteLayers() {
+  ["ly-rgb","ly-swir","ly-v6-cls","ly-ch1","ly-diff"].forEach(id => {
+    if (map.getLayer(id)) map.removeLayer(id);
+  });
+  ["src-rgb","src-swir","src-v6-cls","src-ch1","src-diff"].forEach(id => {
+    if (map.getSource(id)) map.removeSource(id);
+  });
+}
+
+async function selectSite(site, fly=true) {
+  ACTIVE_SITE = site;
+  document.querySelectorAll(".site-card").forEach(el => el.classList.toggle("active", el.dataset.id === site.site_id));
+  const activeCard = document.querySelector(`.site-card[data-id="${site.site_id}"]`);
+  if (activeCard) activeCard.scrollIntoView({ block: "nearest", behavior: "smooth" });
+
+  document.getElementById("d-name").textContent = `${site.name} (${site.region})`;
+  document.getElementById("d-sub").textContent = `${site.region_label} · ${site.category} · ${site.n_rgi_glaciers} glaciers RGI v7`;
+  const recovPct = site.v6_total_km2 > 0 ? (100 * site.v6_recov_in_rgi_km2 / site.v6_total_km2) : 0;
+  document.getElementById("d-metrics").innerHTML = `
+    <div class="m-item"><div class="mv" style="color:var(--rgi)">${fmt(site.rgi_km2, 2)} km²</div><div class="ml">RGI v7 (~2000)</div></div>
+    <div class="m-item"><div class="mv" style="color:var(--ch1)">${fmt(site.ch1_paper_km2, 2)} km²</div><div class="ml">Papier Ch. 1 (Red/SWIR&gt;2)</div></div>
+    <div class="m-item"><div class="mv" style="color:var(--clean)">${fmt(site.v6_total_km2, 2)} km²</div><div class="ml">v6 Total (${fmt(site.retreat_pct_rgi, 1)}% vs RGI)</div></div>
+    <div class="m-item"><div class="mv" style="color:var(--dark)">${fmt(site.v6_dark_km2, 2)} km² (${fmt(site.v6_dark_pct, 1)}%)</div><div class="ml">v6 Glace sombre / débris</div></div>
+    <div class="m-item"><div class="mv" style="color:var(--diff)">+${fmt(site.v6_recov_in_rgi_km2, 2)} km² (${fmt(recovPct, 1)}%)</div><div class="ml">Récupéré par v6 dans RGI</div></div>
+    <div class="m-item"><div class="mv">${fmt(site.iou_v6_ch1, 3)} / <span style="color:var(--clean)">${fmt(site.iou_v6cln_ch1, 3)}</span></div><div class="ml">IoU (v6,Ch.1) / (propre,Ch.1)</div></div>
+  `;
+  const namedStr = (site.named_glaciers && site.named_glaciers.length) ? `Glaciers nommés : ${site.named_glaciers.slice(0, 8).join(", ")}${site.named_glaciers.length > 8 ? "…" : ""}` : "";
+  document.getElementById("d-named").textContent = namedStr;
+  const msName = document.getElementById("ms-name");
+  if (msName) {
+    msName.textContent = `${site.name} (${site.region})`;
+    document.getElementById("ms-vals").innerHTML = `<span style="color:var(--rgi)">RGI ${fmt(site.rgi_km2,1)}</span> · <span style="color:var(--ch1)">Ch1 ${fmt(site.ch1_paper_km2,1)}</span> · <span style="color:var(--clean)">v6 ${fmt(site.v6_total_km2,1)}</span> · <span style="color:var(--diff)">+${fmt(site.v6_recov_in_rgi_km2,1)} km²</span>`;
+  }
+
+  if (fly) {
+    const b = site.bounds_wgs84;
+    const isMob = window.innerWidth <= 860;
+    const pad = isMob ? { top: 20, bottom: 72, left: 16, right: 16 } : { top: 80, bottom: 45, left: 320, right: 355 };
+    map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: pad, duration: 700 });
+  }
+  if (LOADED_MAP_ID !== site.site_id) {
+    LOADED_MAP_ID = site.site_id;
+    clearSiteLayers();
+    const coords = site.image_coords;
+    const base = `${DATA_BASE}/sites/${site.site_id}`;
+    map.addSource("src-rgb", { type: "image", url: `${base}/rgb.jpg`, coordinates: coords });
+    map.addSource("src-swir", { type: "image", url: `${base}/swir.jpg`, coordinates: coords });
+    map.addSource("src-v6-cls", { type: "image", url: `${base}/v6_classes.png`, coordinates: coords });
+    map.addSource("src-ch1", { type: "image", url: `${base}/ch1_paper.png`, coordinates: coords });
+    map.addSource("src-diff", { type: "image", url: `${base}/diff_v6_ch1.png`, coordinates: coords });
+    const beforeId = map.getLayer("glob-ch1-fill") ? "glob-ch1-fill" : (map.getLayer("site-boxes") ? "site-boxes" : undefined);
+    map.addLayer({ id: "ly-rgb", type: "raster", source: "src-rgb" }, beforeId);
+    map.addLayer({ id: "ly-swir", type: "raster", source: "src-swir" }, beforeId);
+    map.addLayer({ id: "ly-ch1", type: "raster", source: "src-ch1" }, beforeId);
+    map.addLayer({ id: "ly-v6-cls", type: "raster", source: "src-v6-cls" }, beforeId);
+    map.addLayer({ id: "ly-diff", type: "raster", source: "src-diff" }, beforeId);
+    applyVisibility();
+  }
+  if (VIEW_MODE !== "map") renderCompare();
+}
+
+function renderList() {
+  const q = document.getElementById("search-box").value.trim().toLowerCase();
+  const sort = document.getElementById("sort-by").value;
+  FILTERED = MANIFEST.sites.filter(s => {
+    if (ACTIVE_REGION !== "ALL" && s.region !== ACTIVE_REGION) return false;
+    if (!q) return true;
+    const hay = `${s.name} ${s.region} ${s.region_label} ${s.category} ${(s.named_glaciers || []).join(" ")}`.toLowerCase();
+    return hay.includes(q);
+  });
+  FILTERED.sort((a, b) => {
+    if (sort === "recov_desc") return b.v6_recov_in_rgi_km2 - a.v6_recov_in_rgi_km2;
+    if (sort === "dark_pct_desc") return b.v6_dark_pct - a.v6_dark_pct;
+    if (sort === "area_desc") return b.rgi_km2 - a.rgi_km2;
+    if (sort === "name") return a.name.localeCompare(b.name);
+    return a.region.localeCompare(b.region) || b.v6_recov_in_rgi_km2 - a.v6_recov_in_rgi_km2;
+  });
+  const el = document.getElementById("site-list");
+  el.innerHTML = "";
+  for (const s of FILTERED) {
+    const div = document.createElement("div");
+    div.className = "site-card" + (ACTIVE_SITE && s.site_id === ACTIVE_SITE.site_id ? " active" : "");
+    div.dataset.id = s.site_id;
+    div.innerHTML = `
+      <div class="sc-top"><span class="sc-name">${s.name}</span><span class="sc-reg">${s.region}</span></div>
+      <div class="sc-cat">${s.category}</div>
+      <div class="sc-bars">
+        <span>RGI ${fmt(s.rgi_km2,1)}</span>
+        <span class="tag-ch1">Ch.1 ${fmt(s.ch1_paper_km2,1)}</span>
+        <span style="color:var(--clean)">v6 ${fmt(s.v6_total_km2,1)} km²</span>
+        <span class="tag-dark">Sombre ${fmt(s.v6_dark_pct,0)}%</span>
+        <span class="tag-recov">+${fmt(s.v6_recov_in_rgi_km2,1)} km²</span>
+      </div>
+    `;
+    div.onclick = () => {
+      document.getElementById("sidebar").classList.remove("open");
+      selectSite(s, true);
+    };
+    el.appendChild(div);
+  }
+}
+
+function buildRegionTable() {
+  let tot = { n:0, g:0, rgi:0, ch1:0, v6:0, cln:0, drk:0, rec:0 };
+  const rows = MANIFEST.by_region.map(r => {
+    tot.n += r.n_sites; tot.g += r.n_rgi_glaciers; tot.rgi += r.rgi_km2; tot.ch1 += r.ch1_paper_km2;
+    tot.v6 += r.v6_total_km2; tot.cln += r.v6_clean_km2; tot.drk += r.v6_dark_km2; tot.rec += r.v6_recov_in_rgi_km2;
+    return `<tr>
+      <td><b>${r.region}</b> ${r.region_label}</td><td>${r.n_sites}</td><td>${r.n_rgi_glaciers}</td>
+      <td style="color:var(--rgi)">${fmt(r.rgi_km2,1)}</td>
+      <td style="color:var(--ch1)">${fmt(r.ch1_paper_km2,1)}</td>
+      <td style="color:var(--clean)"><b>${fmt(r.v6_total_km2,1)}</b></td>
+      <td style="color:var(--dark)">${fmt(r.v6_dark_km2,1)} (${fmt(r.v6_dark_pct,1)}%)</td>
+      <td style="color:var(--diff)"><b>+${fmt(r.v6_recov_in_rgi_km2,1)}</b></td>
+      <td>${fmt(r.ch1_vs_v6_pct,1)}%</td>
+    </tr>`;
+  }).join("");
+  document.getElementById("region-table-body").innerHTML = `
+    <table>
+      <thead><tr><th>Région RGI v7</th><th>Fenêtres</th><th>Glaciers RGI</th><th>RGI v7 (km²)</th><th>Papier Ch. 1 (km²)</th><th>v6 Total (km²)</th><th>v6 Sombre/Débris</th><th>Récupéré v6 (dans RGI)</th><th>Ratio Ch.1 / v6</th></tr></thead>
+      <tbody>${rows}
+        <tr style="border-top:2px solid #38bdf8;font-weight:700;background:rgba(56,189,248,0.1);">
+          <td>TOTAL (10 régions)</td><td>${tot.n}</td><td>${tot.g}</td>
+          <td style="color:var(--rgi)">${fmt(tot.rgi,1)}</td><td style="color:var(--ch1)">${fmt(tot.ch1,1)}</td>
+          <td style="color:var(--clean)">${fmt(tot.v6,1)}</td>
+          <td style="color:var(--dark)">${fmt(tot.drk,1)} (${fmt(100*tot.drk/Math.max(tot.v6,1e-6),1)}%)</td>
+          <td style="color:var(--diff)">+${fmt(tot.rec,1)}</td><td>${fmt(100*tot.ch1/Math.max(tot.v6,1e-6),1)}%</td>
+        </tr>
+      </tbody>
+    </table>
+  `;
+  document.getElementById("gk-sites").textContent = tot.n;
+  document.getElementById("gk-rgi").textContent = fmt(tot.rgi, 0);
+  document.getElementById("gk-ch1").textContent = fmt(tot.ch1, 0);
+  document.getElementById("gk-v6").textContent = fmt(tot.v6, 0);
+}
+
+function setViewMode(mode) {
+  VIEW_MODE = mode;
+  document.querySelectorAll(".mode-tab").forEach(b => b.classList.toggle("active", b.dataset.mode === mode));
+  document.getElementById("compare-view").style.display = (mode === "map") ? "none" : "flex";
+  if (mode !== "map") renderCompare();
+  else map.resize();
+}
+
+map.on("load", async () => {
+  MANIFEST = await fetch(`${DATA_BASE}/manifest.json`).then(r => r.json());
+  buildRegionTable();
+
+  const pills = document.getElementById("region-pills");
+  const addPill = (code, label) => {
+    const b = document.createElement("button");
+    b.className = "pill" + (code === "ALL" ? " active" : "");
+    b.textContent = label;
+    b.onclick = () => {
+      ACTIVE_REGION = code;
+      pills.querySelectorAll(".pill").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      renderList();
+      if (FILTERED.length) selectSite(FILTERED[0], true);
+    };
+    pills.appendChild(b);
+  };
+  addPill("ALL", `Toutes (${MANIFEST.sites.length})`);
+  MANIFEST.by_region.forEach(r => addPill(r.region, `${r.region} (${r.n_sites})`));
+
+  const boxFeats = MANIFEST.sites.map(s => {
+    const [w, so, e, n] = s.bounds_wgs84;
+    return { type:"Feature", properties:{ site_id:s.site_id, name:s.name }, geometry:{ type:"Polygon", coordinates:[[[w,so],[e,so],[e,n],[w,n],[w,so]]] } };
+  });
+  const ptFeats = MANIFEST.sites.map(s => ({
+    type:"Feature", properties:{ site_id:s.site_id, name:s.name, dark_pct:s.v6_dark_pct, recov:s.v6_recov_in_rgi_km2 },
+    geometry:{ type:"Point", coordinates:[s.center_lon, s.center_lat] }
+  }));
+  // Couches vectorielles CONTINUES sur les 82 fenêtres (navigation libre type explorer)
+  map.addSource("glob-rgi", { type:"geojson", data:`${DATA_BASE}/all_rgi_v7.geojson` });
+  map.addSource("glob-ch1", { type:"geojson", data:`${DATA_BASE}/all_ch1_paper.geojson` });
+  map.addSource("glob-v6", { type:"geojson", data:`${DATA_BASE}/all_v6_total.geojson` });
+  map.addSource("glob-v6-dark", { type:"geojson", data:`${DATA_BASE}/all_v6_dark.geojson` });
+
+  map.addLayer({ id:"glob-ch1-fill", type:"fill", source:"glob-ch1", paint:{ "fill-color":"#facc15", "fill-opacity":0.40 } });
+  map.addLayer({ id:"glob-v6-dark-fill", type:"fill", source:"glob-v6-dark", paint:{ "fill-color":"#f43f5e", "fill-opacity":0.30 } });
+  map.addLayer({ id:"glob-rgi-fill", type:"fill", source:"glob-rgi", paint:{ "fill-color":"#38bdf8", "fill-opacity":0.03 } });
+  map.addLayer({ id:"glob-rgi-line", type:"line", source:"glob-rgi", paint:{ "line-color":"#38bdf8", "line-width":["interpolate",["linear"],["zoom"],5,1.0,11,2.2], "line-opacity":0.95 } });
+  map.addLayer({ id:"glob-v6-line", type:"line", source:"glob-v6", paint:{ "line-color":"#10b981", "line-width":["interpolate",["linear"],["zoom"],5,1.0,11,2.0], "line-opacity":0.95 } });
+
+  map.addSource("all-boxes", { type:"geojson", data:{ type:"FeatureCollection", features:boxFeats } });
+  map.addSource("all-pts", { type:"geojson", data:{ type:"FeatureCollection", features:ptFeats } });
+  map.addLayer({ id:"site-boxes", type:"line", source:"all-boxes", paint:{ "line-color":"#e2e8f0", "line-width":1.1, "line-dasharray":[3,2], "line-opacity":0.45 } });
+  map.addLayer({
+    id:"site-pts", type:"circle", source:"all-pts", maxzoom:9.2,
+    paint:{
+      "circle-radius":["interpolate",["linear"],["get","recov"],0,5,10,8,35,13],
+      "circle-color":["interpolate",["linear"],["get","dark_pct"],0,"#10b981",25,"#f59e0b",55,"#f43f5e"],
+      "circle-stroke-color":"#0b111b", "circle-stroke-width":1.6, "circle-opacity":0.92
+    }
+  });
+  map.addLayer({
+    id:"site-labels", type:"symbol", source:"all-pts", minzoom:5.0, maxzoom:9.2,
+    layout:{ "text-field":["get","name"], "text-font":["Noto Sans Regular"], "text-size":11, "text-offset":[0,1.2], "text-anchor":"top" },
+    paint:{ "text-color":"#f8fafc", "text-halo-color":"#0b111b", "text-halo-width":1.5 }
+  });
+  map.on("click", "site-pts", e => {
+    const s = MANIFEST.sites.find(x => x.site_id === e.features[0].properties.site_id);
+    if (s) selectSite(s, true);
+  });
+  map.on("mouseenter", "site-pts", () => map.getCanvas().style.cursor = "pointer");
+  map.on("mouseleave", "site-pts", () => map.getCanvas().style.cursor = "");
+  map.on("click", "glob-rgi-fill", e => {
+    if (map.getZoom() < 8.0) return;
+    const p = e.features[0].properties;
+    const s = MANIFEST.sites.find(x => x.site_id === p.site_id);
+    if (s && LOADED_MAP_ID !== s.site_id) selectSite(s, false);
+    const gname = (p.glac_name && p.glac_name !== "null" && p.glac_name !== "None") ? p.glac_name : p.rgi_id;
+    const dt = (p.src_date && p.src_date !== "null") ? String(p.src_date).slice(0, 10) : "—";
+    new maplibregl.Popup({ closeButton:true, maxWidth:"260px" })
+      .setLngLat(e.lngLat)
+      .setHTML(`<div style="color:#0f172a;font-size:12px;"><b>${gname}</b><br/>RGI ID : ${p.rgi_id}<br/>Aire RGI v7 : ${fmt(p.area_km2, 2)} km²<br/>Date RGI : ${dt}</div>`)
+      .addTo(map);
+  });
+  // Navigation libre : auto-charger le raster Sentinel-2 + Diff de la fenêtre sous le centre de l'écran dès z >= 8.5
+  map.on("moveend", () => {
+    if (VIEW_MODE !== "map" || !MANIFEST || map.getZoom() < 8.5) return;
+    const c = map.getCenter();
+    let hit = null, bestD = 1e9;
+    for (const s of MANIFEST.sites) {
+      const [w, so, e, n] = s.bounds_wgs84;
+      if (c.lng >= w && c.lng <= e && c.lat >= so && c.lat <= n) {
+        const d = Math.hypot(c.lng - s.center_lon, c.lat - s.center_lat);
+        if (d < bestD) { bestD = d; hit = s; }
+      }
+    }
+    if (hit && (!ACTIVE_SITE || hit.site_id !== ACTIVE_SITE.site_id)) {
+      selectSite(hit, false);
+    }
+  });
+
+  renderList();
+  if (FILTERED.length) selectSite(FILTERED[0], true);
+});
+
+document.querySelectorAll(".mode-tab").forEach(b => b.onclick = () => setViewMode(b.dataset.mode));
+document.querySelectorAll(".bg-btn").forEach(b => b.onclick = () => {
+  BG_MODE = b.dataset.bg;
+  document.querySelectorAll(".bg-btn").forEach(x => x.classList.toggle("active", x === b));
+  applyVisibility();
+});
+["chk-rgi","chk-v6-line","chk-v6-cls","chk-ch1","chk-diff","opacity-slider"].forEach(id => {
+  document.getElementById(id).addEventListener("input", applyVisibility);
+});
+["swipe-left","swipe-right","cmp-rgi-line"].forEach(id => {
+  document.getElementById(id).addEventListener("change", renderCompare);
+});
+document.getElementById("search-box").addEventListener("input", renderList);
+document.getElementById("sort-by").addEventListener("change", renderList);
+document.getElementById("btn-fit-all").onclick = () => { setViewMode("map"); map.flyTo({ center:[-138.0, 58.5], zoom:4.1, duration:850 }); };
+document.getElementById("btn-table").onclick = () => {
+  const m = document.getElementById("region-modal");
+  m.style.display = (m.style.display === "block") ? "none" : "block";
+};
+document.getElementById("btn-close-table").onclick = () => document.getElementById("region-modal").style.display = "none";
+
+const FIGS_LIST = [
+  ["https://cryofm-data.thierrystpierre.com/ch1_v6/figures/fig11_rocheuses_0203_100pct.png", "Fig. 11 — NOUVEAU : 100 % des Rocheuses 02-03 (5 063 glaciers · 99,2 % d'accord Ch. 1/v6 · Columbia, Peyto, Clemenceau)"],
+  ["https://cryofm-data.thierrystpierre.com/ch1_v6/figures/fig8_mosaique_100pct_0102_0105.png", "Fig. 8 — Mosaïque intégrale 100 % des régions 01-02 & 01-05 (950 tuiles · 10 851 glaciers · 49 462 km²)"],
+  ["https://cryofm-data.thierrystpierre.com/ch1_v6/figures/fig9_recensement_10851_glaciers.png", "Fig. 9 — NOUVEAU : Recensement complet des 10 851 glaciers (taille, altitude, Top 15 géants récupérés : +5 086 km²)"],
+  ["https://cryofm-data.thierrystpierre.com/ch1_v6/figures/fig10_geants_complets_50m.png", "Fig. 10 — NOUVEAU : 4 méga-complexes d'Alaska vus EN ENTIER à 50 m (Denali, Wrangell, Bering/Steller, Malaspina/Seward/Logan)"],
+  ["https://cryofm-data.thierrystpierre.com/ch1_v6/figures/fig4_carte_continentale_10regions.png", "Fig. 4 — Carte continentale Albers des 10 régions + zoom Alaska Range & St. Elias"],
+  ["https://cryofm-data.thierrystpierre.com/ch1_v6/figures/fig1_synthese_10regions.png", "Fig. 1 — Synthèse quantitative par région et loi débris (82 fenêtres)"],
+  ["https://cryofm-data.thierrystpierre.com/ch1_v6/figures/fig2_planche_langues_alaska.png", "Fig. 2 — 6 grandes langues débrisées d'Alaska (Kennicott, Kahiltna, Kaskawulsh, Logan, Seward, Fairweather)"],
+  ["https://cryofm-data.thierrystpierre.com/ch1_v6/figures/fig5_planche_denali_stelias.png", "Fig. 5 — Autres géants débrisés St. Elias & Denali (Chitina, Tweedsmuir, Barnard, Yentna, Muldrow, Ruth)"],
+  ["https://cryofm-data.thierrystpierre.com/ch1_v6/figures/fig6_planche_cas_scientifiques.png", "Fig. 6 — Diversité des 10 régions (Columbia marée, Matanuska, Brady, Hook, Scimitar, McCall Arctique)"],
+  ["https://cryofm-data.thierrystpierre.com/ch1_v6/figures/fig3_contraste_propres_vs_debris.png", "Fig. 3 — Glaciers propres des Rocheuses (Peyto, Athabasca) vs langues débrisées du Sud (Tiedemann, Carbon)"],
+  ["https://cryofm-data.thierrystpierre.com/ch1_v6/figures/fig7_rgb_swir_ch1_v6.png", "Fig. 7 — Pédagogique : pourquoi Red/SWIR1 rate les débris (RGB vs SWIR B11-B8-B4 vs Ch. 1 vs v6)"],
+];
+let figsBuilt = false;
+document.getElementById("btn-figs").onclick = () => {
+  if (!figsBuilt) {
+    figsBuilt = true;
+    document.getElementById("figs-gallery").innerHTML = FIGS_LIST.map(([src, title]) => `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="font-size:12.5px;font-weight:700;color:#f8fafc;">${title}</span>
+          <a href="${src}" target="_blank" style="color:#38bdf8;font-size:11.5px;text-decoration:none;white-space:nowrap;">Ouvrir PNG ↗</a>
+        </div>
+        <a href="${src}" target="_blank"><img src="${src}" loading="lazy" style="width:100%;height:auto;border-radius:6px;background:#fff;display:block;" /></a>
+      </div>
+    `).join("");
+  }
+  document.getElementById("figs-modal").style.display = "block";
+};
+document.getElementById("btn-close-figs").onclick = () => document.getElementById("figs-modal").style.display = "none";
+
+// Drag rideau A|B (souris + tactile iPhone)
+let dragging = false;
+const swipeBox = document.getElementById("swipe-box");
+const updateSwipe = cx => {
+  const r = swipeBox.getBoundingClientRect();
+  SWIPE_X = Math.max(0.03, Math.min(0.97, (cx - r.left) / r.width));
+  renderCompare();
+};
+swipeBox.addEventListener("pointerdown", e => {
+  if (VIEW_MODE !== "swipe") return;
+  dragging = true;
+  if (swipeBox.setPointerCapture) swipeBox.setPointerCapture(e.pointerId);
+  updateSwipe(e.clientX);
+});
+window.addEventListener("pointermove", e => { if (dragging && VIEW_MODE === "swipe") updateSwipe(e.clientX); });
+window.addEventListener("pointerup", () => dragging = false);
+window.addEventListener("pointercancel", () => dragging = false);
+window.addEventListener("resize", () => { if (VIEW_MODE !== "map") renderCompare(); });
+
+// Contrôles mobiles iPhone
+const stepSite = delta => {
+  if (!FILTERED.length) return;
+  const i = FILTERED.findIndex(x => ACTIVE_SITE && x.site_id === ACTIVE_SITE.site_id);
+  const ni = (i + delta + FILTERED.length) % FILTERED.length;
+  selectSite(FILTERED[ni], true);
+};
+document.getElementById("btn-mob-list").onclick = () => document.getElementById("sidebar").classList.toggle("open");
+document.getElementById("btn-mob-close-list").onclick = () => document.getElementById("sidebar").classList.remove("open");
+document.getElementById("btn-mob-layers").onclick = () => {
+  document.getElementById("detail-panel").classList.remove("mob-open");
+  document.getElementById("layer-panel").classList.toggle("mob-open");
+};
+document.getElementById("btn-mob-info").onclick = () => {
+  document.getElementById("layer-panel").classList.remove("mob-open");
+  document.getElementById("detail-panel").classList.toggle("mob-open");
+};
+document.getElementById("mob-mid").onclick = () => document.getElementById("btn-mob-info").click();
+document.getElementById("mob-prev").onclick = () => stepSite(-1);
+document.getElementById("mob-next").onclick = () => stepSite(1);
+
+window.addEventListener("keydown", e => {
+  if (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "SELECT") return;
+  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+    if (!FILTERED.length) return;
+    const i = FILTERED.findIndex(x => ACTIVE_SITE && x.site_id === ACTIVE_SITE.site_id);
+    const ni = (i + (e.key === "ArrowRight" ? 1 : -1) + FILTERED.length) % FILTERED.length;
+    selectSite(FILTERED[ni], true);
+  } else if (e.key === "1") setViewMode("map");
+  else if (e.key === "2") setViewMode("swipe");
+  else if (e.key === "3") setViewMode("triptych");
+  else if (e.key.toLowerCase() === "r") document.querySelector('.bg-btn[data-bg="rgb"]').click();
+  else if (e.key.toLowerCase() === "s") document.querySelector('.bg-btn[data-bg="swir"]').click();
+});
+</script>
+</body>
+</html>

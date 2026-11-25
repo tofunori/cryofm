@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3 régions 100 % (01-02, 01-05 &amp; 02-03 · 15 914 glaciers) — OlmoGlaViTU v6 vs Papier Ch. 1</title>
+  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/pmtiles@3.2.0/dist/pmtiles.js"></script>
+  <style>
+    :root { --bg:#0b111b; --panel:rgba(13,20,32,0.95); --card:rgba(24,34,52,0.92); --border:rgba(148,163,184,0.22); --text:#e2e8f0; --muted:#94a3b8; --rgi:#38bdf8; --ch1:#facc15; --clean:#10b981; --dark:#f43f5e; --diff:#e81d82; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    html, body { height:100%; width:100%; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif; overflow:hidden; }
+    #app { display:flex; height:100vh; height:100dvh; width:100vw; }
+    #sidebar { width:385px; min-width:330px; max-width:420px; height:100%; background:var(--panel); border-right:1px solid var(--border); display:flex; flex-direction:column; z-index:20; }
+    .sb-head { padding:11px 14px 9px; border-bottom:1px solid var(--border); }
+    .sb-head h1 { font-size:14px; font-weight:700; color:#f8fafc; }
+    .sb-head .sub { font-size:11px; color:var(--muted); margin-top:2px; }
+    .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; padding:8px 10px; border-bottom:1px solid var(--border); background:rgba(15,23,42,0.75); }
+    .kpi { background:var(--card); border:1px solid var(--border); border-radius:7px; padding:5px 4px; text-align:center; }
+    .kpi .v { font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums; }
+    .kpi .l { font-size:9px; color:var(--muted); margin-top:1px; text-transform:uppercase; }
+    .filters { padding:8px 10px; border-bottom:1px solid var(--border); display:flex; flex-direction:column; gap:6px; }
+    .frow { display:flex; gap:6px; }
+    input[type="text"], select { background:#0f172a; color:var(--text); border:1px solid var(--border); border-radius:6px; padding:5px 8px; font-size:11.5px; outline:none; flex:1; }
+    .pills { display:flex; gap:4px; flex-wrap:wrap; }
+    .pill { font-size:10px; padding:3px 7px; border-radius:999px; cursor:pointer; border:1px solid var(--border); background:rgba(30,41,59,0.75); color:var(--muted); }
+    .pill.active { background:#0284c7; color:#fff; border-color:#38bdf8; font-weight:650; }
+    #glist { flex:1; overflow-y:auto; padding:7px 9px; display:flex; flex-direction:column; gap:5px; }
+    .gcard { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:7px 9px; cursor:pointer; }
+    .gcard:hover { border-color:rgba(56,189,248,0.55); }
+    .gcard.active { border-color:#38bdf8; background:rgba(14,52,84,0.92); }
+    .gt { display:flex; justify-content:space-between; gap:6px; font-size:12px; font-weight:650; color:#f8fafc; }
+    .greg { font-size:10px; padding:1px 5px; border-radius:4px; background:rgba(56,189,248,0.16); color:#7dd3fc; }
+    .gb { display:flex; flex-wrap:wrap; gap:6px; margin-top:3px; font-size:10.5px; font-variant-numeric:tabular-nums; color:var(--muted); }
+    #main { flex:1; display:flex; flex-direction:column; position:relative; overflow:hidden; }
+    #topbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:5px; padding:6px 10px; background:var(--panel); border-bottom:1px solid var(--border); z-index:12; }
+    .tb-grp { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+    .mini-btn { font-size:11px; padding:4.5px 8px; border-radius:6px; cursor:pointer; border:1px solid var(--border); background:#1e293b; color:#e2e8f0; font-weight:600; text-decoration:none; white-space:nowrap; }
+    .mini-btn:hover { background:#334155; border-color:#60a5fa; }
+    .seg { display:inline-flex; background:#0f172a; border:1px solid var(--border); border-radius:7px; padding:2px; gap:2px; }
+    .seg button { font-size:10.5px; padding:3.5px 7.5px; border:none; border-radius:5px; cursor:pointer; background:transparent; color:var(--muted); font-weight:650; }
+    .seg button.active { background:#0284c7; color:#fff; }
+    #map-wrap { flex:1; position:relative; }
+    #map { position:absolute; inset:0; width:100%; height:100%; }
+    #hud { position:absolute; top:10px; left:10px; right:10px; display:flex; justify-content:space-between; align-items:flex-start; pointer-events:none; gap:10px; z-index:5; }
+    .hbox { pointer-events:auto; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:9px 11px; backdrop-filter:blur(8px); box-shadow:0 10px 26px rgba(0,0,0,0.45); }
+    #layers { width:275px; font-size:11.5px; }
+    #layers h3 { font-size:10px; text-transform:uppercase; letter-spacing:0.06em; color:var(--muted); margin-bottom:5px; }
+    .crow { display:flex; align-items:center; gap:7px; padding:3px 0; cursor:pointer; }
+    .sw { width:11px; height:11px; border-radius:3px; display:inline-block; flex-shrink:0; }
+    .ld { margin-top:6px; padding-top:6px; border-top:1px solid var(--border); font-size:10px; color:var(--muted); display:grid; grid-template-columns:1fr 1fr; gap:3px; }
+    #detail { width:310px; font-size:11.5px; }
+    #detail h2 { font-size:13px; color:#f8fafc; }
+    .mgrid { display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:7px; }
+    .mi { background:rgba(15,23,42,0.85); border:1px solid var(--border); border-radius:6px; padding:5px 7px; }
+    .mi .mv { font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums; }
+    .mi .ml { font-size:9.5px; color:var(--muted); }
+    .mob-only { display:none; }
+    @media (max-width: 860px) {
+      .mob-only { display:inline-flex; align-items:center; gap:4px; }
+      .desk-only { display:none !important; }
+      #sidebar { position:fixed; inset:0; width:100vw; max-width:100vw; min-width:0; transform:translateX(-105%); transition:transform 0.2s; z-index:40; }
+      #sidebar.open { transform:translateX(0); }
+      #topbar { padding:5px 7px; gap:4px; }
+      #hud { flex-direction:column; top:6px; left:6px; right:6px; }
+      #layers, #detail { display:none; width:100%; max-height:55dvh; overflow-y:auto; }
+      #layers.mob-open, #detail.mob-open { display:block; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div class="sb-head">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+        <h1>3 régions 100 % : 01-02, 01-05 &amp; 02-03</h1>
+        <button class="mini-btn mob-only" id="btn-close-sb">✕ Carte</button>
+      </div>
+      <div class="sub">15 914 glaciers RGI v7 · 1 536 tuiles sans couture (PMTiles HD) · +5 222 km² récupérés</div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><div class="v" style="color:var(--rgi)">53 847</div><div class="l">RGI km²</div></div>
+      <div class="kpi"><div class="v" style="color:var(--ch1)">43 905</div><div class="l">Ch.1 km²</div></div>
+      <div class="kpi"><div class="v" style="color:var(--clean)">47 408</div><div class="l">v6 (RGI)</div></div>
+      <div class="kpi"><div class="v" style="color:var(--diff)">+5 222</div><div class="l">Récup.</div></div>
+    </div>
+    <div class="filters">
+      <div class="frow">
+        <input type="text" id="q" placeholder="Chercher sur 15 914 glaciers (Peyto, Athabasca, Seward, Kennicott…)" />
+      </div>
+      <div class="frow">
+        <select id="sort">
+          <option value="recov">Trier : Récupéré par v6 (km²)</option>
+          <option value="dark">Trier : Glace sombre / débris (km²)</option>
+          <option value="rgi">Trier : Aire RGI v7 (km²)</option>
+          <option value="ch1only">Trier : Ch. 1 seul / lacs rejetés</option>
+          <option value="name">Trier : Nom A→Z</option>
+        </select>
+      </div>
+      <div class="pills" id="reg-pills">
+        <button class="pill active" data-r="ALL">Toutes (15 914)</button>
+        <button class="pill" data-r="01-02">01-02 AK Ra. (5 812)</button>
+        <button class="pill" data-r="01-05">01-05 St. Elias (5 039)</button>
+        <button class="pill" data-r="02-03">02-03 Rockies (5 063)</button>
+        <button class="pill" data-r="NAMED">Nommés</button>
+      </div>
+    </div>
+    <div id="glist"></div>
+  </aside>
+
+  <div id="main">
+    <div id="topbar">
+      <div class="tb-grp">
+        <button class="mini-btn mob-only" id="btn-sb">☰ Glaciers</button>
+        <a class="mini-btn" href="index.html">← 82 sites (10 m + SWIR)</a>
+        <div class="seg" title="Fond satellitaire">
+          <button class="bg-seg active" data-bg="esri">Esri HD</button>
+          <button class="bg-seg" data-bg="s2">Sentinel-2</button>
+        </div>
+        <div class="seg" title="Couche d'analyse">
+          <button class="ov-seg active" data-ov="diff">Diff</button>
+          <button class="ov-seg" data-ov="v6">v6</button>
+          <button class="ov-seg" data-ov="none">Aucun</button>
+        </div>
+      </div>
+      <div class="tb-grp">
+        <button class="mini-btn mob-only" id="btn-lay">Couches</button>
+        <button class="mini-btn mob-only" id="btn-inf">Fiche</button>
+        <span class="desk-only" style="font-size:11px;color:var(--muted)">Opacité</span>
+        <input type="range" id="op" min="0" max="100" value="72" style="width:68px;accent-color:#38bdf8" />
+        <button class="mini-btn desk-only" id="btn-zoom-02">01-02</button>
+        <button class="mini-btn desk-only" id="btn-zoom-05">01-05</button>
+        <button class="mini-btn desk-only" id="btn-zoom-0203">02-03</button>
+        <button class="mini-btn desk-only" id="btn-zoom-all">Tout</button>
+      </div>
+    </div>
+    <div id="map-wrap">
+      <div id="map"></div>
+      <div id="hud">
+        <div class="hbox" id="layers">
+          <h3>Couches HD (PMTiles + Vecteurs)</h3>
+          <label class="crow"><input type="checkbox" id="c-vec-tot" checked /><span class="sw" style="background:#10b981"></span>Contours vecteur v6 (16 733 poly.)</label>
+          <label class="crow"><input type="checkbox" id="c-vec-drk" checked /><span class="sw" style="background:#f43f5e"></span>Contours vecteur débris v6</label>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.35;">
+            <b>Esri HD</b> = satellite haute résolution en continu.<br/>
+            <b>Sentinel-2</b> = mosaïque août 2021–2023 (même période que le modèle). Pour le 10 m + SWIR + Rideau A|B, clique <b>← 82 sites</b>.
+          </div>
+          <div class="ld">
+            <div><span class="sw" style="background:#e81d82"></span> v6 récupère (RGI)</div>
+            <div><span class="sw" style="background:#38bdf8"></span> Accord v6 ∩ Ch. 1</div>
+            <div><span class="sw" style="background:#a855f7"></span> v6 hors RGI</div>
+            <div><span class="sw" style="background:#f97316"></span> Ch. 1 seul (rejeté)</div>
+          </div>
+          <div style="display:flex;gap:4px;margin-top:7px;">
+            <button class="mini-btn" id="m-zoom-02" style="flex:1">01-02</button>
+            <button class="mini-btn" id="m-zoom-05" style="flex:1">01-05</button>
+            <button class="mini-btn" id="m-zoom-0203" style="flex:1">02-03</button>
+            <button class="mini-btn" id="m-zoom-all" style="flex:1">Tout</button>
+          </div>
+        </div>
+        <div class="hbox" id="detail">
+          <h2 id="dn">Seward / Malaspina (01-05)</h2>
+          <div id="ds" style="font-size:10.5px;color:var(--muted);margin-top:2px;">Clique un glacier dans la liste ou sur la carte</div>
+          <div class="mgrid" id="dm"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA_BASE = "https://cryofm-data.thierrystpierre.com/ch1_v6";
+const protocol = new pmtiles.Protocol();
+maplibregl.addProtocol("pmtiles", protocol.tile);
+
+const KNOWN_NAMES = {
+  "RGI2000-v7.0-G-01-16798": "Steller / Bering W (01-16798)",
+  "RGI2000-v7.0-G-01-04360": "Muldrow Glacier (01-04360)",
+  "RGI2000-v7.0-G-01-04282": "Kahiltna Glacier (01-04282)",
+  "RGI2000-v7.0-G-01-04310": "Ruth Glacier (01-04310)",
+};
+let GLACIERS = [], FILTERED = [], REG = "ALL", ACTIVE = null;
+let BG_MODE = "esri";
+let OV_MODE = "diff";
+const fmt = (x, d=1) => (x === undefined || x === null || Number.isNaN(+x)) ? "—" : Number(x).toFixed(d);
+
+const map = new maplibregl.Map({
+  container: "map",
+  style: {
+    version: 8,
+    glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+    sources: {
+      esri: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256, maxzoom: 17, attribution: "Esri HD · Sentinel-2 (2021–2023) · OlmoGlaViTU v6" },
+      s2rgb: { type: "raster", tiles: [`pmtiles://${DATA_BASE}/full_ak/s2rgb_3regions.pmtiles/{z}/{x}/{y}`], tileSize: 256, minzoom: 4, maxzoom: 10 },
+      v6pm: { type: "raster", tiles: [`pmtiles://${DATA_BASE}/full_ak/v6_3regions.pmtiles/{z}/{x}/{y}`], tileSize: 256, minzoom: 4, maxzoom: 11 },
+      diffpm: { type: "raster", tiles: [`pmtiles://${DATA_BASE}/full_ak/diff_3regions.pmtiles/{z}/{x}/{y}`], tileSize: 256, minzoom: 4, maxzoom: 11 },
+    },
+    layers: [
+      { id: "ly-esri", type: "raster", source: "esri" },
+      { id: "ly-s2rgb", type: "raster", source: "s2rgb", layout: { visibility: "none" } },
+      { id: "ly-v6", type: "raster", source: "v6pm", layout: { visibility: "none" }, paint: { "raster-resampling": "nearest", "raster-opacity": 0.72 } },
+      { id: "ly-diff", type: "raster", source: "diffpm", layout: { visibility: "visible" }, paint: { "raster-resampling": "nearest", "raster-opacity": 0.72 } },
+    ]
+  },
+  center: [-143.5, 61.4],
+  zoom: 5.7
+});
+map.addControl(new maplibregl.NavigationControl(), "bottom-right");
+map.addControl(new maplibregl.ScaleControl({ maxWidth: 160, unit: "metric" }), "bottom-left");
+
+function parseCSV(txt) {
+  const lines = txt.trim().split(/\r?\n/);
+  const hdr = lines[0].split(",");
+  const out = [];
+  for (let i = 1; i < lines.length; i++) {
+    const parts = lines[i].split(",");
+    if (parts.length < hdr.length) continue;
+    const o = {};
+    for (let j = 0; j < hdr.length; j++) o[hdr[j]] = parts[j];
+    ["cenlon","cenlat","zmin_m","zmed_m","zmax_m","rgi_geom_km2","rgi_px_km2","ch1_paper_km2","v6_in_rgi_km2","v6_clean_km2","v6_dark_km2","v6_dark_pct","recov_in_rgi_km2","recov_dark_km2","ch1_only_km2","agree_km2","iou_v6_ch1"].forEach(k => o[k] = parseFloat(o[k]));
+    o.display_name = KNOWN_NAMES[o.rgi_id] || o.glac_name || o.rgi_id;
+    out.push(o);
+  }
+  return out;
+}
+
+function showDetail(g, fly=true) {
+  ACTIVE = g;
+  document.getElementById("dn").textContent = `${g.display_name} (${g.o2region})`;
+  document.getElementById("ds").textContent = `${g.rgi_id} · zmed ${fmt(g.zmed_m,0)} m [${fmt(g.zmin_m,0)}–${fmt(g.zmax_m,0)} m]`;
+  document.getElementById("dm").innerHTML = `
+    <div class="mi"><div class="mv" style="color:var(--rgi)">${fmt(g.rgi_px_km2,1)} km²</div><div class="ml">RGI v7 (~2000)</div></div>
+    <div class="mi"><div class="mv" style="color:var(--ch1)">${fmt(g.ch1_paper_km2,1)} km²</div><div class="ml">Papier Ch. 1</div></div>
+    <div class="mi"><div class="mv" style="color:var(--clean)">${fmt(g.v6_in_rgi_km2,1)} km²</div><div class="ml">v6 dans RGI</div></div>
+    <div class="mi"><div class="mv" style="color:var(--dark)">${fmt(g.v6_dark_km2,1)} km² (${fmt(g.v6_dark_pct,1)}%)</div><div class="ml">v6 Sombre / débris</div></div>
+    <div class="mi"><div class="mv" style="color:var(--diff)">+${fmt(g.recov_in_rgi_km2,1)} km²</div><div class="ml">Récupéré par v6</div></div>
+    <div class="mi"><div class="mv" style="color:#fb923c">${fmt(g.ch1_only_km2,1)} km² · ${fmt(g.iou_v6_ch1,2)}</div><div class="ml">Ch.1 seul · IoU</div></div>
+  `;
+  if (fly) {
+    const z = g.rgi_px_km2 > 500 ? 9.5 : (g.rgi_px_km2 > 80 ? 10.8 : 11.8);
+    map.flyTo({ center: [g.cenlon, g.cenlat], zoom: z, duration: 750 });
+  }
+  document.querySelectorAll(".gcard").forEach(el => el.classList.toggle("active", el.dataset.id === g.rgi_id));
+}
+
+function renderList() {
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  const s = document.getElementById("sort").value;
+  FILTERED = GLACIERS.filter(g => {
+    if ((REG === "01-02" || REG === "01-05" || REG === "02-03") && g.o2region !== REG) return false;
+    if (REG === "NAMED" && !g.glac_name && !KNOWN_NAMES[g.rgi_id]) return false;
+    if (!q) return true;
+    return `${g.display_name} ${g.rgi_id} ${g.o2region}`.toLowerCase().includes(q);
+  });
+  FILTERED.sort((a, b) => {
+    if (s === "recov") return b.recov_in_rgi_km2 - a.recov_in_rgi_km2;
+    if (s === "dark") return b.v6_dark_km2 - a.v6_dark_km2;
+    if (s === "rgi") return b.rgi_px_km2 - a.rgi_px_km2;
+    if (s === "ch1only") return b.ch1_only_km2 - a.ch1_only_km2;
+    return a.display_name.localeCompare(b.display_name);
+  });
+  const el = document.getElementById("glist");
+  el.innerHTML = "";
+  for (const g of FILTERED.slice(0, 120)) {
+    const d = document.createElement("div");
+    d.className = "gcard" + (ACTIVE && ACTIVE.rgi_id === g.rgi_id ? " active" : "");
+    d.dataset.id = g.rgi_id;
+    d.innerHTML = `
+      <div class="gt"><span>${g.display_name}</span><span class="greg">${g.o2region}</span></div>
+      <div class="gb">
+        <span>RGI ${fmt(g.rgi_px_km2,1)}</span>
+        <span style="color:var(--ch1)">Ch1 ${fmt(g.ch1_paper_km2,1)}</span>
+        <span style="color:var(--clean)">v6 ${fmt(g.v6_in_rgi_km2,1)} km²</span>
+        <span style="color:#fda4af">${fmt(g.v6_dark_pct,0)}% drk</span>
+        <span style="color:#f472b6;font-weight:700">+${fmt(g.recov_in_rgi_km2,1)} km²</span>
+      </div>
+    `;
+    d.onclick = () => { document.getElementById("sidebar").classList.remove("open"); showDetail(g, true); };
+    el.appendChild(d);
+  }
+  if (FILTERED.length > 120) {
+    const info = document.createElement("div");
+    info.style.cssText = "text-align:center;font-size:10.5px;color:var(--muted);padding:6px;";
+    info.textContent = `Top 120 affichés sur ${FILTERED.length} résultats — affine la recherche.`;
+    el.appendChild(info);
+  }
+}
+
+function applyVis() {
+  const op = Number(document.getElementById("op").value) / 100.0;
+  const setL = (id, vis, opacity=null) => {
+    if (!map.getLayer(id)) return;
+    map.setLayoutProperty(id, "visibility", vis ? "visible" : "none");
+    if (opacity !== null) map.setPaintProperty(id, "raster-opacity", opacity);
+  };
+  setL("ly-s2rgb", BG_MODE === "s2", 1.0);
+  setL("ly-diff", OV_MODE === "diff", op);
+  setL("ly-v6", OV_MODE === "v6", op);
+
+  const vt = document.getElementById("c-vec-tot").checked;
+  const vd = document.getElementById("c-vec-drk").checked;
+  ["01-02", "01-05", "02-03"].forEach(r => {
+    setL(`ly-${r}-vt`, vt);
+    setL(`ly-${r}-vd`, vd);
+  });
+}
+
+map.on("load", async () => {
+  const [csvAK, csvRK] = await Promise.all([
+    fetch(`${DATA_BASE}/full_ak/glaciers_01-02_01-05_v6_vs_ch1.csv`).then(r => r.text()),
+    fetch(`${DATA_BASE}/full_ak/glaciers_02-03_v6_vs_ch1.csv`).then(r => r.text()),
+  ]);
+  GLACIERS = parseCSV(csvAK).concat(parseCSV(csvRK));
+
+  for (const r of ["01-02", "01-05", "02-03"]) {
+    map.addSource(`src-${r}-vt`, { type: "geojson", data: `${DATA_BASE}/full_ak/vec_${r}_v6_total.geojson` });
+    map.addSource(`src-${r}-vd`, { type: "geojson", data: `${DATA_BASE}/full_ak/vec_${r}_v6_dark.geojson` });
+    map.addLayer({ id: `ly-${r}-vt`, type: "line", source: `src-${r}-vt`, paint: { "line-color": "#10b981", "line-width": ["interpolate",["linear"],["zoom"],6,0.9,12,1.9] } });
+    map.addLayer({ id: `ly-${r}-vd`, type: "line", source: `src-${r}-vd`, paint: { "line-color": "#f43f5e", "line-width": ["interpolate",["linear"],["zoom"],6,1.1,12,2.1] } });
+  }
+
+  const topPts = GLACIERS.filter(g => (g.o2region === "02-03" ? (g.recov_in_rgi_km2 >= 0.8 || g.rgi_px_km2 >= 18) : g.recov_in_rgi_km2 >= 15.0)).map(g => ({
+    type: "Feature",
+    properties: { rgi_id: g.rgi_id, name: g.display_name.replace(" Glacier",""), recov: g.recov_in_rgi_km2 },
+    geometry: { type: "Point", coordinates: [g.cenlon, g.cenlat] }
+  }));
+  map.addSource("top-pts", { type: "geojson", data: { type: "FeatureCollection", features: topPts } });
+  map.addLayer({
+    id: "top-circles", type: "circle", source: "top-pts", maxzoom: 8.5,
+    paint: { "circle-radius": ["interpolate",["linear"],["get","recov"],15,5,150,9,500,14], "circle-color": "#e81d82", "circle-stroke-color": "#fff", "circle-stroke-width": 1.4, "circle-opacity": 0.85 }
+  });
+  map.addLayer({
+    id: "top-lbls", type: "symbol", source: "top-pts", minzoom: 5.5, maxzoom: 9.0,
+    layout: { "text-field": ["get", "name"], "text-font": ["Noto Sans Regular"], "text-size": 10.5, "text-offset": [0, 1.2], "text-anchor": "top" },
+    paint: { "text-color": "#f8fafc", "text-halo-color": "#0b111b", "text-halo-width": 1.4 }
+  });
+  map.on("click", "top-circles", e => {
+    const g = GLACIERS.find(x => x.rgi_id === e.features[0].properties.rgi_id);
+    if (g) showDetail(g, true);
+  });
+
+  applyVis();
+  renderList();
+  if (FILTERED.length) showDetail(FILTERED[0], false);
+});
+
+document.querySelectorAll(".bg-seg").forEach(b => b.onclick = () => {
+  BG_MODE = b.dataset.bg;
+  document.querySelectorAll(".bg-seg").forEach(x => x.classList.toggle("active", x === b));
+  applyVis();
+});
+document.querySelectorAll(".ov-seg").forEach(b => b.onclick = () => {
+  OV_MODE = b.dataset.ov;
+  document.querySelectorAll(".ov-seg").forEach(x => x.classList.toggle("active", x === b));
+  applyVis();
+});
+["c-vec-tot","c-vec-drk","op"].forEach(id => document.getElementById(id).addEventListener("input", applyVis));
+document.getElementById("q").addEventListener("input", renderList);
+document.getElementById("sort").addEventListener("change", renderList);
+document.querySelectorAll("#reg-pills .pill").forEach(b => b.onclick = () => {
+  REG = b.dataset.r;
+  document.querySelectorAll("#reg-pills .pill").forEach(x => x.classList.toggle("active", x === b));
+  renderList();
+});
+
+const go02 = () => map.flyTo({ center: [-147.0, 62.6], zoom: 6.2, duration: 750 });
+const go05 = () => map.flyTo({ center: [-140.8, 60.6], zoom: 6.7, duration: 750 });
+const go0203 = () => map.flyTo({ center: [-117.3, 52.15], zoom: 8.2, duration: 750 });
+const goAll = () => map.flyTo({ center: [-133.5, 57.5], zoom: 4.4, duration: 750 });
+document.getElementById("btn-zoom-02").onclick = go02;
+document.getElementById("btn-zoom-05").onclick = go05;
+document.getElementById("btn-zoom-0203").onclick = go0203;
+document.getElementById("btn-zoom-all").onclick = goAll;
+document.getElementById("m-zoom-02").onclick = go02;
+document.getElementById("m-zoom-05").onclick = go05;
+document.getElementById("m-zoom-0203").onclick = go0203;
+document.getElementById("m-zoom-all").onclick = goAll;
+
+document.getElementById("btn-sb").onclick = () => document.getElementById("sidebar").classList.toggle("open");
+document.getElementById("btn-close-sb").onclick = () => document.getElementById("sidebar").classList.remove("open");
+document.getElementById("btn-lay").onclick = () => { document.getElementById("detail").classList.remove("mob-open"); document.getElementById("layers").classList.toggle("mob-open"); };
+document.getElementById("btn-inf").onclick = () => { document.getElementById("layers").classList.remove("mob-open"); document.getElementById("detail").classList.toggle("mob-open"); };
+</script>
+</body>
+</html>
