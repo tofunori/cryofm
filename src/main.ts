@@ -148,6 +148,11 @@ const elHudZoom = document.getElementById('hud-zoom') as HTMLSpanElement;
 const elHudStatus = document.getElementById('hud-status') as HTMLSpanElement;
 const elBtnGlobe = document.getElementById('btn-globe') as HTMLButtonElement;
 const elBtnToggleLeft = document.getElementById('btn-toggle-left') as HTMLButtonElement;
+const elBtnToggleRight = document.getElementById('btn-toggle-right') as HTMLButtonElement;
+
+function isMobileViewport(): boolean {
+  return window.innerWidth <= 768;
+}
 
 // ── Initialize synchronized dual MapLibre GL 3D maps ─────────────────
 const mapLeft = new maplibregl.Map({
@@ -204,7 +209,9 @@ function applySwipeClip() {
   if (showSwipe) {
     const pct = Math.max(2, Math.min(98, state.swipePct));
     elSwipeDivider.style.left = `${pct}%`;
-    elMapRight.style.clipPath = `inset(0 0 0 ${pct}%)`;
+    const clip = `inset(0 0 0 ${pct}%)`;
+    elMapRight.style.clipPath = clip;
+    (elMapRight.style as CSSStyleDeclaration & { webkitClipPath?: string }).webkitClipPath = clip;
     elSwipeLabelL.textContent = OVERLAY_BY_KEY[state.leftOverlay]?.shortLabel ?? state.leftOverlay;
     elSwipeLabelR.textContent = OVERLAY_BY_KEY[state.rightOverlay]?.shortLabel ?? state.rightOverlay;
   }
@@ -212,19 +219,31 @@ function applySwipeClip() {
 
 let draggingSwipe = false;
 elSwipeHandle.addEventListener('pointerdown', (ev) => {
+  ev.preventDefault();
   draggingSwipe = true;
   elSwipeHandle.classList.add('dragging');
-  elSwipeHandle.setPointerCapture(ev.pointerId);
+  try {
+    elSwipeHandle.setPointerCapture(ev.pointerId);
+  } catch {
+    // Ignore on browsers without pointer capture
+  }
 });
 
 window.addEventListener('pointermove', (ev) => {
   if (!draggingSwipe) return;
+  ev.preventDefault();
   const rect = document.getElementById('map-stage')!.getBoundingClientRect();
   state.swipePct = ((ev.clientX - rect.left) / rect.width) * 100;
   applySwipeClip();
 });
 
 window.addEventListener('pointerup', () => {
+  if (!draggingSwipe) return;
+  draggingSwipe = false;
+  elSwipeHandle.classList.remove('dragging');
+});
+
+window.addEventListener('pointercancel', () => {
   if (!draggingSwipe) return;
   draggingSwipe = false;
   elSwipeHandle.classList.remove('dragging');
@@ -794,7 +813,18 @@ function renderLegend() {
 
 async function selectExportedItem(item: ExportedItem) {
   state.activeItem = item;
-  elRightDrawer.classList.remove('hidden');
+  const mobile = isMobileViewport();
+  elBtnToggleRight.classList.remove('hidden');
+  if (mobile) {
+    // On iPhone/mobile, collapse both drawers on selection so 100% of the screen shows the 10 m glacier polygons & swipe
+    elLeftDrawer.classList.add('hidden');
+    elRightDrawer.classList.add('hidden');
+    elBtnToggleLeft.classList.remove('active');
+    elBtnToggleRight.classList.remove('active');
+  } else {
+    elRightDrawer.classList.remove('hidden');
+    elBtnToggleRight.classList.add('active');
+  }
   elRasterControls.classList.remove('hidden');
   elNoExportNote.classList.add('hidden');
   elBtnGlobe.classList.remove('active');
@@ -815,25 +845,44 @@ async function selectExportedItem(item: ExportedItem) {
     el.classList.toggle('active', el.getAttribute('data-id') === item.id);
   });
 
-  // Fit map cleanly to the exact 10 m WGS84 bounds
-  const [xmin, ymin, xmax, ymax] = item.bounds;
-  mapLeft.fitBounds(
-    [
-      [xmin, ymin],
-      [xmax, ymax],
-    ],
-    {
-      padding: { top: 88, bottom: 64, left: 344, right: 370 },
-      duration: 950,
-      maxZoom: 13.8,
-    },
-  );
-
+  // Load & mount 10 m rasters BEFORE camera fit so overlays ALWAYS render even if viewport is tight
   elHudStatus.textContent = `Chargement des rasters 10 m (${item.id})…`;
   state.activeFiles = await probeAvailableFiles(item);
   populateOverlaySelects();
   renderActiveRasters();
-  elHudStatus.textContent = `${item.id} · ${state.activeFiles.size} couches 10 m prêtes · Zoomez jusqu'au pixel`;
+
+  // Fit map cleanly with viewport-safe padding (never exceeds canvas dimensions on iPhone/mobile!)
+  const [xmin, ymin, xmax, ymax] = item.bounds;
+  const canvasW = mapLeft.getContainer().clientWidth || window.innerWidth;
+  const canvasH = mapLeft.getContainer().clientHeight || window.innerHeight;
+  const leftOpen = !mobile && !elLeftDrawer.classList.contains('hidden');
+  const rightOpen = !mobile && !elRightDrawer.classList.contains('hidden');
+  const padLeft = leftOpen ? Math.min(344, Math.floor(canvasW * 0.34)) : 16;
+  const padRight = rightOpen ? Math.min(370, Math.floor(canvasW * 0.34)) : 16;
+  const padTop = mobile ? 92 : 88;
+  const padBottom = mobile ? 56 : 64;
+  const safePad =
+    padLeft + padRight < canvasW - 60 && padTop + padBottom < canvasH - 60
+      ? { top: padTop, bottom: padBottom, left: padLeft, right: padRight }
+      : { top: 24, bottom: 24, left: 16, right: 16 };
+  try {
+    mapLeft.fitBounds(
+      [
+        [xmin, ymin],
+        [xmax, ymax],
+      ],
+      {
+        padding: safePad,
+        duration: 850,
+        maxZoom: 13.8,
+      },
+    );
+  } catch {
+    mapLeft.flyTo({ center: [(xmin + xmax) / 2, (ymin + ymax) / 2], zoom: 11.5, duration: 850 });
+  }
+  elHudStatus.textContent = mobile
+    ? `${item.id} · Glisser ◀▶ · « Couches » pour options`
+    : `${item.id} · ${state.activeFiles.size} couches 10 m prêtes · Zoomez jusqu'au pixel`;
 }
 
 function showNonExportedTile(tile: Tile556) {
@@ -884,6 +933,8 @@ function returnToGlobe() {
   clearActiveRasters(mapRight);
   applySwipeClip();
   elRightDrawer.classList.add('hidden');
+  elBtnToggleRight.classList.add('hidden');
+  elBtnToggleRight.classList.remove('active');
   elBtnGlobe.classList.add('active');
   document.querySelectorAll('.site-card').forEach((el) => el.classList.remove('active'));
   mapLeft.flyTo({ center: [24, 32], zoom: 2.1, pitch: 0, bearing: 0, duration: 1000 });
@@ -1017,6 +1068,10 @@ function renderRegionsTable() {
       const code = row.getAttribute('data-reg')!;
       const r = REGION_MAP[code];
       if (r) {
+        if (isMobileViewport()) {
+          elLeftDrawer.classList.add('hidden');
+          elBtnToggleLeft.classList.remove('active');
+        }
         mapLeft.flyTo({ center: r.center, zoom: r.zoom, duration: 900 });
       }
     });
@@ -1166,10 +1221,32 @@ function wireUI() {
 
   elBtnGlobe.addEventListener('click', returnToGlobe);
   elBtnToggleLeft.addEventListener('click', () => {
+    const willShow = elLeftDrawer.classList.contains('hidden');
     elLeftDrawer.classList.toggle('hidden');
+    elBtnToggleLeft.classList.toggle('active', willShow);
+    if (isMobileViewport() && willShow) {
+      elRightDrawer.classList.add('hidden');
+      elBtnToggleRight.classList.remove('active');
+    }
+  });
+  elBtnToggleRight.addEventListener('click', () => {
+    const willShow = elRightDrawer.classList.contains('hidden');
+    elRightDrawer.classList.toggle('hidden');
+    elBtnToggleRight.classList.toggle('active', willShow);
+    if (isMobileViewport() && willShow) {
+      elLeftDrawer.classList.add('hidden');
+      elBtnToggleLeft.classList.remove('active');
+    }
   });
 
-  document.getElementById('btn-close-insp')!.addEventListener('click', returnToGlobe);
+  document.getElementById('btn-close-insp')!.addEventListener('click', () => {
+    if (isMobileViewport() && state.activeItem) {
+      elRightDrawer.classList.add('hidden');
+      elBtnToggleRight.classList.remove('active');
+    } else {
+      returnToGlobe();
+    }
+  });
 
   const stepSite = (delta: number) => {
     if (state.items.length === 0) return;
@@ -1252,6 +1329,12 @@ function wireUI() {
 // ── Boot sequence ────────────────────────────────────────────────────
 async function boot() {
   wireUI();
+  if (isMobileViewport()) {
+    elLeftDrawer.classList.add('hidden');
+    elBtnToggleLeft.classList.remove('active');
+  } else {
+    elBtnToggleLeft.classList.add('active');
+  }
   renderRegionPills();
   renderRegionsTable();
 
