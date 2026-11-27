@@ -52,7 +52,7 @@ const state: AppState = {
   siteSort: 'default',
   globeMetric: 'v3_vs_glav',
   baseLayer: 'rgb',
-  leftOverlay: 'v31_p4',
+  leftOverlay: 'v9_p4',
   rightOverlay: 'glavitu',
   opacity: 0.72,
   baseLift: 0.10,
@@ -453,15 +453,17 @@ function addGlobeLayers(map: maplibregl.Map, interactive: boolean) {
     const id = String(f.properties?.id ?? '');
     const item = state.itemsById.get(id);
     if (!item) return;
-    const m3 = item.metrics.v3_p4;
+    const m9 = item.metrics.v9_p4;
+    const m8 = item.metrics.v8_p4;
+    const m3 = item.metrics.v31_p4 ?? item.metrics.v3_p4;
     const mg = item.metrics.glavitu;
     const gTxt = mg ? `GlaViTU <b>${mg.iou.toFixed(4)}</b>` : 'GlaViTU <i>en attente</i>';
-    const v3Txt = m3 ? `v3 <b>${m3.iou.toFixed(4)}</b>` : '';
+    const vTxt = m9 ? `v9 <b>${m9.iou.toFixed(4)}</b>` : m8 ? `v8 <b>${m8.iou.toFixed(4)}</b>` : m3 ? `v3 <b>${m3.iou.toFixed(4)}</b>` : '';
     popup
       .setLngLat(e.lngLat)
       .setHTML(
         `<div><strong>${item.label}</strong> <span style="color:#22d3ee">★ 10 m</span></div>
-         <div class="mono" style="margin-top:3px;font-size:11px">${v3Txt} · ${gTxt}</div>
+         <div class="mono" style="margin-top:3px;font-size:11px">${vTxt} · ${gTxt}</div>
          <div style="color:#a69c92;font-size:10px;margin-top:2px">Cliquer pour ouvrir le rideau pixel-à-pixel</div>`,
       )
       .addTo(map);
@@ -654,18 +656,19 @@ function populateOverlaySelects() {
     }
     return 'none';
   };
-  state.leftOverlay = fallback(state.leftOverlay, ['v3_p2', 'v31_p4', 'v3_p4', 'truth', 'none']);
+  state.leftOverlay = fallback(state.leftOverlay, ['v9_p4', 'v8_p4', 'v31_p4', 'v3_p2', 'v3_p4', 'truth', 'none']);
   state.rightOverlay = fallback(state.rightOverlay, ['glavitu', 'truth', 'v2', 'none']);
 
   makeOpts(elSelLeft, state.leftOverlay);
   makeOpts(elSelRight, state.rightOverlay);
 
   const hasP2 = state.activeFiles.has('v3_p2.png');
+  const hasV8 = state.activeFiles.has('v8_p4.png');
   const hasV31 = state.activeFiles.has('v31_p4.png');
   const hasGlav = state.activeFiles.has('glavitu.png');
   elBtnPresetP2.disabled = !hasP2;
   const v31Btn = document.getElementById('btn-preset-v31') as HTMLButtonElement | null;
-  if (v31Btn) v31Btn.disabled = !hasV31;
+  if (v31Btn) v31Btn.disabled = !(hasV8 || hasV31);
   const glavBtn = document.querySelector('[data-preset="v3_glav"]') as HTMLButtonElement | null;
   if (glavBtn) {
     glavBtn.disabled = !hasGlav;
@@ -673,6 +676,8 @@ function populateOverlaySelects() {
   const diffBtn = document.querySelector('[data-preset="diff"]') as HTMLButtonElement | null;
   if (diffBtn) {
     diffBtn.disabled = !(
+      state.activeFiles.has('diff_v9_p4_glav.png') ||
+      state.activeFiles.has('diff_v8_p4_glav.png') ||
       state.activeFiles.has('diff_v31_p4_glav.png') ||
       state.activeFiles.has('diff_v3_p4_glav.png') ||
       state.activeFiles.has('diff_v3_p2_glav.png')
@@ -684,12 +689,30 @@ function renderItemMetrics(item: ExportedItem) {
   const m = item.metrics;
   const boxes: string[] = [];
 
+  if (m.v9_p4) {
+    const deb = m.v9_p4.deb_iou !== undefined && m.v9_p4.deb_iou >= 0 ? ` · Sombre ${m.v9_p4.deb_iou.toFixed(3)}` : '';
+    boxes.push(`
+      <div class="mbox">
+        <div class="mbox-lbl">OlmoGlaViTU v9 ★ (sans TTA)</div>
+        <div class="mbox-val" style="color:var(--emerald)">${m.v9_p4.iou.toFixed(4)}</div>
+        <div class="mbox-sub">P ${m.v9_p4.prec.toFixed(3)} · R ${m.v9_p4.rec.toFixed(3)}${deb}</div>
+      </div>`);
+  }
+  if (m.v8_p4) {
+    const deb = m.v8_p4.deb_iou !== undefined && m.v8_p4.deb_iou >= 0 ? ` · Sombre ${m.v8_p4.deb_iou.toFixed(3)}` : '';
+    boxes.push(`
+      <div class="mbox">
+        <div class="mbox-lbl">OlmoGlaViTU v8 (sans TTA)</div>
+        <div class="mbox-val" style="color:var(--cyan)">${m.v8_p4.iou.toFixed(4)}</div>
+        <div class="mbox-sub">P ${m.v8_p4.prec.toFixed(3)} · R ${m.v8_p4.rec.toFixed(3)}${deb}</div>
+      </div>`);
+  }
   if (m.v31_p4) {
     const deb = m.v31_p4.deb_iou !== undefined && m.v31_p4.deb_iou >= 0 ? ` · Déb ${m.v31_p4.deb_iou.toFixed(3)}` : '';
     boxes.push(`
       <div class="mbox">
         <div class="mbox-lbl">OlmoEarth v3.1 (τ*=0.54)</div>
-        <div class="mbox-val" style="color:var(--emerald)">${m.v31_p4.iou.toFixed(4)}</div>
+        <div class="mbox-val" style="color:var(--cyan)">${m.v31_p4.iou.toFixed(4)}</div>
         <div class="mbox-sub">P ${m.v31_p4.prec.toFixed(3)} · R ${m.v31_p4.rec.toFixed(3)}${deb}</div>
       </div>`);
   }
@@ -711,8 +734,8 @@ function renderItemMetrics(item: ExportedItem) {
       </div>`);
   }
   if (m.glavitu) {
-    const refV3 = m.v31_p4?.iou ?? m.v3_p2?.iou ?? m.v3_p4?.iou;
-    const diff = refV3 !== undefined ? refV3 - m.glavitu.iou : null;
+    const refBest = m.v9_p4?.iou ?? m.v8_p4?.iou ?? m.v31_p4?.iou ?? m.v3_p2?.iou ?? m.v3_p4?.iou;
+    const diff = refBest !== undefined ? refBest - m.glavitu.iou : null;
     const diffHtml =
       diff !== null
         ? `<span style="color:${diff >= 0 ? 'var(--emerald)' : 'var(--rose)'}"> (${diff >= 0 ? '+' : ''}${(diff * 100).toFixed(2)} pts)</span>`
@@ -900,7 +923,8 @@ function filteredItems(): ExportedItem[] {
 
   if (state.siteSort === 'default') return base;
   const copy = [...base];
-  const scoreV3 = (it: ExportedItem) => it.metrics.v31_p4?.iou ?? it.metrics.v3_p2?.iou ?? it.metrics.v3_p4?.iou ?? -1;
+  const scoreV3 = (it: ExportedItem) =>
+    it.metrics.v9_p4?.iou ?? it.metrics.v8_p4?.iou ?? it.metrics.v31_p4?.iou ?? it.metrics.v3_p2?.iou ?? it.metrics.v3_p4?.iou ?? -1;
   const diffGlav = (it: ExportedItem) => {
     const v3 = scoreV3(it);
     const gl = it.metrics.glavitu?.iou;
@@ -918,8 +942,8 @@ function filteredItems(): ExportedItem[] {
       return da - db;
     }
     if (state.siteSort === 'debris') {
-      const da = a.metrics.v3_p2?.deb_iou ?? a.metrics.v3_p4?.deb_iou ?? -1;
-      const db = b.metrics.v3_p2?.deb_iou ?? b.metrics.v3_p4?.deb_iou ?? -1;
+      const da = a.metrics.v9_p4?.deb_iou ?? a.metrics.v8_p4?.deb_iou ?? a.metrics.v3_p2?.deb_iou ?? a.metrics.v3_p4?.deb_iou ?? -1;
+      const db = b.metrics.v9_p4?.deb_iou ?? b.metrics.v8_p4?.deb_iou ?? b.metrics.v3_p2?.deb_iou ?? b.metrics.v3_p4?.deb_iou ?? -1;
       return db - da;
     }
     if (state.siteSort === 'hardest') {
@@ -941,9 +965,10 @@ function renderSiteList() {
   }
   elSiteList.innerHTML = list
     .map((it) => {
-      const m3 = it.metrics.v31_p4 ?? it.metrics.v3_p2 ?? it.metrics.v3_p4;
+      const mBest = it.metrics.v9_p4 ?? it.metrics.v8_p4 ?? it.metrics.v31_p4 ?? it.metrics.v3_p2 ?? it.metrics.v3_p4;
+      const bestTag = it.metrics.v9_p4 ? 'v9' : it.metrics.v8_p4 ? 'v8' : 'v3';
       const mg = it.metrics.glavitu;
-      const diff = m3 && mg ? m3.iou - mg.iou : null;
+      const diff = mBest && mg ? mBest.iou - mg.iou : null;
       const diffSpan =
         diff !== null
           ? `<span class="${diff >= 0 ? 'm-pos' : 'm-neg'}">${diff >= 0 ? '+' : ''}${(diff * 100).toFixed(1)}</span>`
@@ -955,7 +980,7 @@ function renderSiteList() {
             <span class="tag ${it.kind === 'independent_scene' ? 'tag-indep' : 'tag-reg'}">${it.kind === 'independent_scene' ? 'Table 1' : it.region}</span>
           </div>
           <div class="site-card-metrics">
-            <span class="m-v3">v3 ${m3 ? m3.iou.toFixed(4) : '—'}</span>
+            <span class="m-v3">${bestTag} ${mBest ? mBest.iou.toFixed(4) : '—'}</span>
             <span class="m-glav">GlaV ${mg ? mg.iou.toFixed(4) : '…'}</span>
             ${diffSpan}
           </div>
@@ -974,14 +999,14 @@ function renderSiteList() {
 }
 
 function renderRegionsTable() {
-  const header = `<div class="reg-row hdr"><span>Région</span><span>v3 p=4</span><span>GlaViTU</span><span>Δ</span></div>`;
+  const header = `<div class="reg-row hdr"><span>Région</span><span>v9 ★</span><span>GlaViTU</span><span>Δ</span></div>`;
   const rows = REGION_BENCHMARKS.map((r) => {
-    const d = r.v3_p4 - r.glavitu;
+    const d = r.v9_p4 - r.glavitu;
     const cls = d >= 0 ? 'm-pos' : 'm-neg';
     return `
       <div class="reg-row" data-reg="${r.code}">
         <span><strong>${r.code}</strong> · ${r.name}</span>
-        <span class="mono m-v3">${r.v3_p4.toFixed(4)}</span>
+        <span class="mono m-v3">${r.v9_p4.toFixed(4)}</span>
         <span class="mono m-glav">${r.glavitu.toFixed(3)}</span>
         <span class="mono ${cls}">${d >= 0 ? '+' : ''}${(d * 100).toFixed(2)}</span>
       </div>`;
@@ -1006,16 +1031,17 @@ function renderIndepTable() {
   }
   elIndepTable.innerHTML = indeps
     .map((it) => {
-      const m3 = it.metrics.v3_p4?.iou;
+      const mBest = it.metrics.v9_p4?.iou ?? it.metrics.v8_p4?.iou ?? it.metrics.v31_p4?.iou ?? it.metrics.v3_p4?.iou;
+      const lblBest = it.metrics.v9_p4 ? 'OlmoGlaViTU v9' : it.metrics.v8_p4 ? 'OlmoGlaViTU v8' : 'OlmoEarth v3';
       const mg = it.metrics.glavitu?.iou;
       const m2 = it.metrics.v2?.iou;
-      const diff = m3 !== undefined && mg !== undefined ? m3 - mg : null;
+      const diff = mBest !== undefined && mg !== undefined ? mBest - mg : null;
       return `
         <div class="indep-card" data-id="${it.id}">
           <h4>${it.label}</h4>
           <div class="note">${TABLE1_PUBLISHED_NOTES[it.id] ?? ''}</div>
           <div class="indep-grid">
-            <div class="indep-cell"><span>OlmoEarth v3</span><strong class="m-v3">${m3 !== undefined ? m3.toFixed(4) : '—'}</strong></div>
+            <div class="indep-cell"><span>${lblBest}</span><strong class="m-v3">${mBest !== undefined ? mBest.toFixed(4) : '—'}</strong></div>
             <div class="indep-cell"><span>GlaViTU Global</span><strong class="m-glav">${mg !== undefined ? mg.toFixed(4) : '…'}</strong></div>
             <div class="indep-cell"><span>v2 / Δ GlaV</span><strong class="${diff !== null ? (diff >= 0 ? 'm-pos' : 'm-neg') : 'm-v2'}">${diff !== null ? `${diff >= 0 ? '+' : ''}${(diff * 100).toFixed(2)} pts` : m2 !== undefined ? m2.toFixed(4) : '—'}</strong></div>
           </div>
@@ -1034,14 +1060,20 @@ function renderIndepTable() {
 
 // ── Presets & Controls wiring ────────────────────────────────────────
 function applyPreset(preset: string) {
+  const hasV9 = state.activeFiles.has('v9_p4.png');
+  const hasV8 = state.activeFiles.has('v8_p4.png');
   const hasP2 = state.activeFiles.has('v3_p2.png');
   const hasV31 = state.activeFiles.has('v31_p4.png');
-  const mainV3: OverlayLayerKey = hasV31 ? 'v31_p4' : hasP2 ? 'v3_p2' : 'v3_p4';
-  const mainDiff: OverlayLayerKey = state.activeFiles.has('diff_v31_p4_glav.png')
-    ? 'diff_v31_p4_glav'
-    : state.activeFiles.has('diff_v3_p2_glav.png')
-      ? 'diff_v3_p2_glav'
-      : 'diff_v3_p4_glav';
+  const mainV3: OverlayLayerKey = hasV9 ? 'v9_p4' : hasV8 ? 'v8_p4' : hasV31 ? 'v31_p4' : hasP2 ? 'v3_p2' : 'v3_p4';
+  const mainDiff: OverlayLayerKey = state.activeFiles.has('diff_v9_p4_glav.png')
+    ? 'diff_v9_p4_glav'
+    : state.activeFiles.has('diff_v8_p4_glav.png')
+      ? 'diff_v8_p4_glav'
+      : state.activeFiles.has('diff_v31_p4_glav.png')
+        ? 'diff_v31_p4_glav'
+        : state.activeFiles.has('diff_v3_p2_glav.png')
+          ? 'diff_v3_p2_glav'
+          : 'diff_v3_p4_glav';
 
   switch (preset) {
     case 'v3_glav':
@@ -1061,14 +1093,23 @@ function applyPreset(preset: string) {
       state.swipeEnabled = true;
       break;
     case 'err':
-      state.leftOverlay = hasV31 ? 'v31_p4_err' : hasP2 ? 'v3_p2_err' : 'v3_p4_err';
+      state.leftOverlay = hasV9 ? 'v9_p4_err' : hasV8 ? 'v8_p4_err' : hasV31 ? 'v31_p4_err' : hasP2 ? 'v3_p2_err' : 'v3_p4_err';
       state.rightOverlay = state.activeFiles.has('glavitu_err.png') ? 'glavitu_err' : 'truth';
       state.swipeEnabled = true;
       break;
     case 'v31_v3':
-      if (!hasV31) return;
-      state.leftOverlay = 'v31_p4';
-      state.rightOverlay = 'v3_p4';
+      if (hasV9 && hasV8) {
+        state.leftOverlay = 'v9_p4';
+        state.rightOverlay = 'v8_p4';
+      } else if (hasV8 && hasV31) {
+        state.leftOverlay = 'v8_p4';
+        state.rightOverlay = 'v31_p4';
+      } else if (hasV31) {
+        state.leftOverlay = 'v31_p4';
+        state.rightOverlay = 'v3_p4';
+      } else {
+        return;
+      }
       state.swipeEnabled = true;
       break;
     case 'v3_v2':

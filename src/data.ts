@@ -7,19 +7,19 @@ import type {
   Tiles556Payload,
 } from './types';
 
-// Exact 11-region benchmarks: OlmoEarth v3 (p=4 TTA4), OlmoEarth v2, and Maslov et al. (2025) GlaViTU Global Opt+DEM
+// Exact 11-region benchmarks: OlmoGlaViTU v9 & v8 (Opt+DEM, sans TTA, τ=0.50), OlmoEarth v3 (p=4 TTA4), OlmoEarth v2, and Maslov et al. (2025) GlaViTU Global Opt+DEM
 export const REGION_BENCHMARKS: RegionBenchmark[] = [
-  { code: 'SC', name: 'Scandinavie', v3_p4: 0.9328, v2: 0.9167, glavitu: 0.908, center: [13.5, 65.0], zoom: 4.3 },
-  { code: 'ALP', name: 'Alpes', v3_p4: 0.8630, v2: 0.8315, glavitu: 0.844, center: [9.0, 46.5], zoom: 5.8 },
-  { code: 'NZ', name: 'Nouvelle-Zélande', v3_p4: 0.8628, v2: 0.8226, glavitu: 0.860, center: [170.2, -43.6], zoom: 6.0 },
-  { code: 'CAU', name: 'Caucase', v3_p4: 0.8619, v2: 0.8337, glavitu: 0.862, center: [43.2, 43.1], zoom: 6.2 },
-  { code: 'SVAL', name: 'Svalbard', v3_p4: 0.9326, v2: 0.9225, glavitu: 0.936, center: [18.0, 78.5], zoom: 4.5 },
-  { code: 'SA', name: 'Andes Sud', v3_p4: 0.9473, v2: 0.9430, glavitu: 0.952, center: [-73.2, -49.5], zoom: 4.2 },
-  { code: 'GR', name: 'Groenland', v3_p4: 0.9312, v2: 0.9234, glavitu: 0.937, center: [-44.0, 68.0], zoom: 3.3 },
-  { code: 'AN', name: 'Antarctique', v3_p4: 0.9401, v2: 0.9375, glavitu: 0.949, center: [-62.0, -64.5], zoom: 3.8 },
-  { code: 'AWA', name: 'Alaska & Ouest Am.', v3_p4: 0.9009, v2: 0.8854, glavitu: 0.912, center: [-138.0, 58.5], zoom: 3.6 },
-  { code: 'HMA', name: 'Haute-Asie (débris)', v3_p4: 0.7566, v2: 0.6869, glavitu: 0.774, center: [82.0, 34.5], zoom: 3.8 },
-  { code: 'LL', name: 'Basses latitudes', v3_p4: 0.8845, v2: 0.8706, glavitu: 0.903, center: [-77.0, -10.5], zoom: 4.2 },
+  { code: 'SC', name: 'Scandinavie', v9_p4: 0.9390, v8_p4: 0.9395, v3_p4: 0.9328, v2: 0.9167, glavitu: 0.908, center: [13.5, 65.0], zoom: 4.3 },
+  { code: 'ALP', name: 'Alpes', v9_p4: 0.8732, v8_p4: 0.8713, v3_p4: 0.8630, v2: 0.8315, glavitu: 0.844, center: [9.0, 46.5], zoom: 5.8 },
+  { code: 'NZ', name: 'Nouvelle-Zélande', v9_p4: 0.8745, v8_p4: 0.8728, v3_p4: 0.8628, v2: 0.8226, glavitu: 0.860, center: [170.2, -43.6], zoom: 6.0 },
+  { code: 'CAU', name: 'Caucase', v9_p4: 0.8682, v8_p4: 0.8712, v3_p4: 0.8619, v2: 0.8337, glavitu: 0.862, center: [43.2, 43.1], zoom: 6.2 },
+  { code: 'SVAL', name: 'Svalbard', v9_p4: 0.9390, v8_p4: 0.9388, v3_p4: 0.9326, v2: 0.9225, glavitu: 0.936, center: [18.0, 78.5], zoom: 4.5 },
+  { code: 'SA', name: 'Andes Sud', v9_p4: 0.9594, v8_p4: 0.9586, v3_p4: 0.9473, v2: 0.9430, glavitu: 0.952, center: [-73.2, -49.5], zoom: 4.2 },
+  { code: 'GR', name: 'Groenland', v9_p4: 0.9384, v8_p4: 0.9383, v3_p4: 0.9312, v2: 0.9234, glavitu: 0.937, center: [-44.0, 68.0], zoom: 3.3 },
+  { code: 'AN', name: 'Antarctique', v9_p4: 0.9552, v8_p4: 0.9546, v3_p4: 0.9401, v2: 0.9375, glavitu: 0.949, center: [-62.0, -64.5], zoom: 3.8 },
+  { code: 'AWA', name: 'Alaska & Ouest Am.', v9_p4: 0.9120, v8_p4: 0.9090, v3_p4: 0.9009, v2: 0.8854, glavitu: 0.912, center: [-138.0, 58.5], zoom: 3.6 },
+  { code: 'HMA', name: 'Haute-Asie (débris)', v9_p4: 0.7816, v8_p4: 0.7816, v3_p4: 0.7566, v2: 0.6869, glavitu: 0.774, center: [82.0, 34.5], zoom: 3.8 },
+  { code: 'LL', name: 'Basses latitudes', v9_p4: 0.9020, v8_p4: 0.9077, v3_p4: 0.8845, v2: 0.8706, glavitu: 0.903, center: [-77.0, -10.5], zoom: 4.2 },
 ];
 
 export const REGION_MAP: Record<string, RegionBenchmark> = Object.fromEntries(
@@ -43,6 +43,28 @@ export interface OverlayMeta {
 }
 
 export const OVERLAY_CATALOG: OverlayMeta[] = [
+  {
+    key: 'v9_p4',
+    label: 'OlmoGlaViTU v9 ★ (Global · Opt+DEM, sans TTA · 0.9254)',
+    shortLabel: 'OlmoGlaViTU v9 ★',
+    file: 'v9_p4.png',
+    legend: [
+      { color: '#06b6d4', text: 'Glace propre (v9)' },
+      { color: '#f97316', text: 'Glace sombre Red/SWIR1<2 (v9)' },
+      { color: '#e0f2fe', text: 'Contour prédit (τ=0.50)' },
+    ],
+  },
+  {
+    key: 'v8_p4',
+    label: 'OlmoGlaViTU v8 (Opt+DEM, sans TTA · 0.9039)',
+    shortLabel: 'OlmoGlaViTU v8',
+    file: 'v8_p4.png',
+    legend: [
+      { color: '#06b6d4', text: 'Glace propre (v8)' },
+      { color: '#f97316', text: 'Glace sombre Red/SWIR1<2 (v8)' },
+      { color: '#e0f2fe', text: 'Contour prédit (τ=0.50)' },
+    ],
+  },
   {
     key: 'v31_p4',
     label: 'OlmoEarth v3.1 (p=4, τ*=0.54 · 0.8964)',
@@ -108,6 +130,28 @@ export const OVERLAY_CATALOG: OverlayMeta[] = [
     ],
   },
   {
+    key: 'diff_v9_p4_glav',
+    label: 'Désaccord v9 ★ vs GlaViTU',
+    shortLabel: 'Désaccord v9 vs GlaViTU',
+    file: 'diff_v9_p4_glav.png',
+    legend: [
+      { color: '#10b981', text: 'Seul OlmoGlaViTU v9 a raison' },
+      { color: '#a855f7', text: 'Seul GlaViTU Global a raison' },
+      { color: '#f43f5e', text: 'Erreur commune aux 2 modèles' },
+    ],
+  },
+  {
+    key: 'diff_v8_p4_glav',
+    label: 'Désaccord v8 vs GlaViTU',
+    shortLabel: 'Désaccord v8 vs GlaViTU',
+    file: 'diff_v8_p4_glav.png',
+    legend: [
+      { color: '#10b981', text: 'Seul OlmoGlaViTU v8 a raison' },
+      { color: '#a855f7', text: 'Seul GlaViTU Global a raison' },
+      { color: '#f43f5e', text: 'Erreur commune aux 2 modèles' },
+    ],
+  },
+  {
     key: 'diff_v31_p4_glav',
     label: 'Désaccord v3.1 vs GlaViTU',
     shortLabel: 'Désaccord v3.1 vs GlaViTU',
@@ -138,6 +182,28 @@ export const OVERLAY_CATALOG: OverlayMeta[] = [
       { color: '#10b981', text: 'Seul OlmoEarth v3 (p=2) a raison' },
       { color: '#a855f7', text: 'Seul GlaViTU Global a raison' },
       { color: '#f43f5e', text: 'Erreur commune' },
+    ],
+  },
+  {
+    key: 'v9_p4_err',
+    label: 'Erreurs OlmoGlaViTU v9 ★ (TP/FP/FN)',
+    shortLabel: 'Erreurs v9',
+    file: 'v9_p4_err.png',
+    legend: [
+      { color: '#10b981', text: 'Vrai positif (TP)' },
+      { color: '#f43f5e', text: 'Faux positif (FP · sur-détection)' },
+      { color: '#facc15', text: 'Faux négatif (FN · oublié)' },
+    ],
+  },
+  {
+    key: 'v8_p4_err',
+    label: 'Erreurs OlmoGlaViTU v8 (TP/FP/FN)',
+    shortLabel: 'Erreurs v8',
+    file: 'v8_p4_err.png',
+    legend: [
+      { color: '#10b981', text: 'Vrai positif (TP)' },
+      { color: '#f43f5e', text: 'Faux positif (FP · sur-détection)' },
+      { color: '#facc15', text: 'Faux négatif (FN · oublié)' },
     ],
   },
   {
@@ -261,15 +327,21 @@ export async function probeAvailableFiles(item: ExportedItem): Promise<Set<strin
     'swir.jpg',
     'dem.jpg',
     'truth.png',
+    'v9_p4.png',
+    'v8_p4.png',
     'v31_p4.png',
     'v3_p4.png',
     'v3_p2.png',
     'v2.png',
     'glavitu.png',
+    'v9_p4_err.png',
+    'v8_p4_err.png',
     'v31_p4_err.png',
     'v3_p4_err.png',
     'v3_p2_err.png',
     'glavitu_err.png',
+    'diff_v9_p4_glav.png',
+    'diff_v8_p4_glav.png',
     'diff_v31_p4_glav.png',
     'diff_v3_p4_glav.png',
     'diff_v3_p2_glav.png',

@@ -16,6 +16,8 @@ export interface ExportedItem {
   shape: [number, number]; // [H, W] native 10m
   has_insar: boolean;
   metrics: {
+    v9_p4?: ModelMetric;
+    v8_p4?: ModelMetric;
     v31_p4?: ModelMetric;
     v3_p4?: ModelMetric;
     v3_p2?: ModelMetric;
@@ -71,6 +73,8 @@ export interface Tiles556Payload {
 export interface RegionBenchmark {
   code: string;
   name: string;
+  v9_p4: number;
+  v8_p4: number;
   v3_p4: number;
   v2: number;
   glavitu: number;
@@ -83,16 +87,22 @@ export type BaseLayerKey = 'rgb' | 'swir' | 'dem' | 'sat';
 
 export type OverlayLayerKey =
   | 'none'
+  | 'v9_p4'
+  | 'v8_p4'
   | 'v31_p4'
   | 'v3_p4'
   | 'v3_p2'
   | 'glavitu'
   | 'v2'
   | 'truth'
+  | 'v9_p4_err'
+  | 'v8_p4_err'
   | 'v31_p4_err'
   | 'v3_p4_err'
   | 'v3_p2_err'
   | 'glavitu_err'
+  | 'diff_v9_p4_glav'
+  | 'diff_v8_p4_glav'
   | 'diff_v31_p4_glav'
   | 'diff_v3_p4_glav'
   | 'diff_v3_p2_glav'
